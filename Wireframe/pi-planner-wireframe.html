@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PI Planning Assistant — Wireframes</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+  :root {
+    --bg:#f5f5f3;--surface:#ffffff;--surface1:#f9f9f8;--surface2:#f0f0ed;
+    --border:#e2e0d8;--border-strong:#ccc9be;
+    --text:#1a1a18;--muted:#6b6a64;--hint:#9e9d97;
+    --accent:#185fa5;--accent-bg:#e6f1fb;--accent-border:#b5d4f4;
+    --success:#0f6e56;--success-bg:#e1f5ee;--success-border:#9fe1cb;
+    --danger:#a32d2d;--danger-bg:#fcebeb;
+    --warn:#854f0b;--warn-bg:#faeeda;
+    --radius:8px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text)}
+  .page{max-width:980px;margin:0 auto;padding:32px 24px}
+  .page-title{font-size:13px;font-weight:500;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.07em}
+  .page-desc{font-size:13px;color:var(--hint);margin-bottom:32px}
+  .screen-label{font-size:11px;font-weight:500;color:var(--hint);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+  .screen{background:var(--surface);border:0.5px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:48px}
+
+  /* Topbar */
+  .topbar{background:var(--surface1);border-bottom:0.5px solid var(--border);padding:10px 18px;display:flex;align-items:center;justify-content:space-between}
+  .logo-wrap{display:flex;align-items:center;gap:8px}
+  .logo-dot{width:24px;height:24px;border-radius:6px;background:var(--accent);display:flex;align-items:center;justify-content:center}
+  .logo-dot i{color:#fff;font-size:14px}
+  .logo-name{font-size:13px;font-weight:500;color:var(--text)}
+  .logo-sub{font-size:11px;color:var(--muted)}
+  .step-badge{font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px;background:var(--accent-bg);color:var(--accent);display:inline-flex;align-items:center;gap:4px}
+  .step-badge.success{background:var(--success-bg);color:var(--success)}
+
+  /* Shared btn */
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--radius);font-size:12px;font-weight:500;cursor:pointer;border:none}
+  .btn-primary{background:var(--accent);color:#fff}
+  .btn-ghost{background:transparent;color:var(--muted);border:0.5px solid var(--border-strong)}
+
+  /* ── Screen 1 ── */
+  .s1-body{display:grid;grid-template-columns:1fr 1fr;min-height:420px}
+  .s1-left{padding:18px;border-right:0.5px solid var(--border)}
+  .s1-right{padding:18px}
+  .section-title{font-size:12px;font-weight:500;color:var(--text);margin-bottom:3px;display:flex;align-items:center;gap:6px}
+  .section-title i{font-size:14px;color:var(--muted)}
+  .section-sub{font-size:11px;color:var(--hint);margin-bottom:12px}
+  .upload-box{border:1px dashed var(--border-strong);border-radius:12px;padding:22px;text-align:center;background:var(--surface1);margin-bottom:12px}
+  .upload-box i{font-size:24px;color:var(--hint);display:block;margin-bottom:6px}
+  .upload-label{font-size:12px;color:var(--muted)}
+  .upload-sub{font-size:11px;color:var(--hint);margin-top:3px}
+  .or-div{display:flex;align-items:center;gap:8px;margin:10px 0;font-size:11px;color:var(--hint)}
+  .or-div::before,.or-div::after{content:'';flex:1;height:0.5px;background:var(--border)}
+  .init-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface1);border:0.5px solid var(--border);border-radius:8px;margin-bottom:6px}
+  .init-num{width:20px;height:20px;border-radius:50%;background:var(--accent-bg);color:var(--accent);font-size:10px;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .init-title{font-size:12px;color:var(--text);font-weight:500}
+  .init-sub{font-size:10px;color:var(--hint)}
+  .add-row{display:flex;align-items:center;gap:6px;padding:7px 10px;border:0.5px dashed var(--border-strong);border-radius:8px;font-size:12px;color:var(--hint);margin-top:4px}
+  .kb-item{display:flex;align-items:center;gap:10px;padding:9px 10px;background:var(--surface1);border:0.5px solid var(--border);border-radius:8px;margin-bottom:6px}
+  .kb-icon{width:30px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px}
+  .kb-icon.conf{background:#E6F1FB;color:#0C447C}
+  .kb-icon.arch{background:#E1F5EE;color:#085041}
+  .kb-icon.team{background:#FAEEDA;color:#633806}
+  .kb-icon.inv{background:#FBEAF0;color:#72243E}
+  .kb-name{font-size:12px;font-weight:500;color:var(--text)}
+  .kb-meta{font-size:10px;color:var(--hint)}
+  .kb-badge{font-size:10px;padding:2px 6px;border-radius:20px;background:var(--success-bg);color:var(--success);flex-shrink:0}
+  .cta-bar{padding:14px 18px;border-top:0.5px solid var(--border);background:var(--surface1);display:flex;align-items:center;justify-content:space-between}
+  .cta-note{font-size:11px;color:var(--hint)}
+
+  /* ── Screen 2 ── */
+  .s2-body{padding:24px 18px}
+  .pipeline{display:flex;align-items:flex-start;margin-bottom:8px;position:relative}
+  .pipeline::before{content:'';position:absolute;top:22px;left:22px;right:22px;height:1px;background:var(--border);z-index:0}
+  .agent-col{display:flex;flex-direction:column;align-items:center;flex:1;position:relative;z-index:1}
+  .agent-circle{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:8px}
+  .agent-circle i{font-size:18px}
+  .agent-circle.done{background:var(--success-bg);border:1.5px solid var(--success-border)}
+  .agent-circle.done i{color:var(--success)}
+  .agent-circle.active{background:var(--accent-bg);border:2px solid var(--accent-border)}
+  .agent-circle.active i{color:var(--accent);animation:spin .9s linear infinite}
+  .agent-circle.wait{background:var(--surface1);border:1px dashed var(--border-strong)}
+  .agent-circle.wait i{color:var(--hint)}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .agent-name{font-size:10px;font-weight:500;color:var(--text);text-align:center;margin-bottom:2px}
+  .agent-status{font-size:9px;color:var(--hint);text-align:center}
+  .agent-status.done{color:var(--success)}
+  .agent-status.active{color:var(--accent)}
+  .progress-bar{height:3px;background:var(--border);border-radius:2px;margin:12px 0 20px;overflow:hidden}
+  .progress-fill{height:100%;background:var(--accent);border-radius:2px;width:52%}
+  .findings-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .findings-label{font-size:11px;font-weight:500;color:var(--hint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+  .finding-card{background:var(--surface1);border:0.5px solid var(--border);border-radius:10px;padding:11px 13px;margin-bottom:7px}
+  .finding-card.hi{border-color:var(--accent-border)}
+  .ftag{font-size:10px;font-weight:500;padding:2px 7px;border-radius:20px;display:inline-block;margin-bottom:6px}
+  .ftag.sys{background:var(--accent-bg);color:var(--accent)}
+  .ftag.dep{background:#FAEEDA;color:#633806}
+  .ftext{font-size:12px;color:var(--text);line-height:1.5}
+  .fsub{font-size:11px;color:var(--hint);margin-top:3px}
+  .kb-used{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text)}
+  .kb-used i{color:var(--accent);font-size:14px}
+  .ai-note{font-size:11px;color:var(--muted);padding:9px 11px;background:var(--surface1);border-radius:var(--radius);border-left:3px solid var(--accent-border);line-height:1.5;margin-top:4px}
+
+  /* ── Screen 3 ── */
+  .stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:16px 18px;border-bottom:0.5px solid var(--border)}
+  .stat-card{background:var(--surface1);border-radius:var(--radius);padding:10px 12px}
+  .stat-label{font-size:10px;color:var(--hint);margin-bottom:4px}
+  .stat-val{font-size:24px;font-weight:500;line-height:1}
+  .stat-val.accent{color:var(--accent)}
+  .stat-val.danger{color:var(--danger)}
+  .stat-sub{font-size:10px;color:var(--hint);margin-top:3px}
+
+  /* Results main — graph + side panel */
+  .s3-main{display:grid;grid-template-columns:3fr 2fr;min-height:360px}
+  .graph-area{border-right:0.5px solid var(--border);padding:14px}
+  .graph-title{font-size:12px;font-weight:500;color:var(--text);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
+  .graph-legend{display:flex;gap:10px;flex-wrap:wrap}
+  .leg-item{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted)}
+  .leg-dot{width:8px;height:8px;border-radius:50%}
+  .graph-box{background:var(--surface1);border:0.5px solid var(--border);border-radius:10px;overflow:hidden}
+  .graph-hint{font-size:10px;color:var(--hint);text-align:center;margin-top:7px;display:flex;align-items:center;justify-content:center;gap:4px}
+
+  .side-panel{display:flex;flex-direction:column}
+  .side-tabs{display:flex;border-bottom:0.5px solid var(--border)}
+  .side-tab{flex:1;text-align:center;font-size:11px;padding:9px 4px;color:var(--hint);border-bottom:2px solid transparent;cursor:pointer}
+  .side-tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:500}
+  .side-content{padding:12px;flex:1}
+  .risk-item{display:flex;gap:8px;padding:9px 0;border-bottom:0.5px solid var(--border);cursor:pointer;transition:background .12s;border-radius:4px}
+  .risk-item:last-child{border-bottom:none}
+  .risk-item.active-row{background:var(--accent-bg);padding-left:6px;padding-right:6px;border-bottom:none !important;border-radius:6px;margin:0 -6px}
+  .risk-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px}
+  .risk-title{font-size:12px;font-weight:500;color:var(--text)}
+  .risk-desc{font-size:11px;color:var(--muted);line-height:1.4;margin-top:2px}
+  .sev{font-size:10px;padding:2px 6px;border-radius:20px;flex-shrink:0}
+  .sev-h{background:var(--danger-bg);color:var(--danger)}
+  .sev-m{background:var(--warn-bg);color:var(--warn)}
+  .click-hint{font-size:10px;color:var(--accent);margin-top:3px;display:flex;align-items:center;gap:3px}
+
+  /* AI summary strip */
+  .exec-strip{padding:13px 18px;border-top:0.5px solid var(--border);background:var(--surface1)}
+  .exec-label{font-size:10px;font-weight:500;color:var(--hint);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px}
+  .exec-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .exec-cell{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:10px 12px}
+  .exec-cell-label{font-size:10px;color:var(--hint);margin-bottom:4px}
+  .exec-cell-val{font-size:12px;font-weight:500;color:var(--text);line-height:1.4}
+
+  /* ── Screen 4: Results with drawer open ── */
+  .s4-outer{position:relative;overflow:hidden}
+  .s4-main{display:grid;grid-template-columns:3fr 2fr;min-height:360px;transition:filter .2s}
+  .s4-main.dimmed{filter:brightness(.97)}
+
+  /* Drawer */
+  .drawer{position:absolute;top:0;right:0;bottom:0;width:340px;background:var(--surface);border-left:0.5px solid var(--border);display:flex;flex-direction:column;z-index:10}
+  .drawer-topbar{padding:12px 16px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+  .drawer-title{font-size:13px;font-weight:500;color:var(--text)}
+  .drawer-close{width:26px;height:26px;border-radius:var(--radius);border:0.5px solid var(--border-strong);background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted)}
+  .drawer-body{padding:16px;overflow-y:auto;flex:1}
+  .drawer-section{margin-bottom:16px}
+  .drawer-section-label{font-size:10px;font-weight:500;color:var(--hint);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px}
+  .drawer-risk-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:500;margin-bottom:12px}
+  .drawer-risk-badge.high{background:var(--danger-bg);color:var(--danger)}
+  .reasoning-box{background:var(--accent-bg);border-left:3px solid var(--accent-border);border-radius:0 var(--radius) var(--radius) 0;padding:12px 14px;font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:14px}
+  .affected-item{display:flex;align-items:center;gap:8px;padding:7px 9px;background:var(--surface1);border:0.5px solid var(--border);border-radius:var(--radius);margin-bottom:6px;font-size:12px;color:var(--text)}
+  .affected-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .sources-item{display:flex;align-items:center;gap:8px;padding:7px 9px;background:var(--surface1);border:0.5px solid var(--border);border-radius:var(--radius);margin-bottom:6px;font-size:12px;color:var(--text)}
+  .sources-item i{font-size:14px;color:var(--accent)}
+  .drawer-footer{padding:12px 16px;border-top:0.5px solid var(--border);flex-shrink:0}
+  .drawer-actions{display:flex;gap:8px}
+  .suggest-prompt{font-size:11px;color:var(--hint);margin-bottom:8px}
+  .prompt-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border:0.5px solid var(--border-strong);border-radius:20px;font-size:11px;color:var(--muted);background:var(--surface1);cursor:pointer;margin-right:5px;margin-bottom:5px}
+  .prompt-chip i{font-size:12px;color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="page-title">PI planning assistant — wireframes</div>
+  <div class="page-desc">4 screens · Intake → Agent pipeline → Results → Results with reasoning drawer &nbsp;·&nbsp; Dallas Got AI Talent, Dec 4 2026</div>
+
+  <!-- ══════════════════════════════════════════
+       SCREEN 1: INTAKE
+  ══════════════════════════════════════════ -->
+  <div class="screen-label">Screen 1 of 4 — Intake</div>
+  <div class="screen">
+    <div class="topbar">
+      <div class="logo-wrap">
+        <div class="logo-dot"><i class="ti ti-layers-subtract" aria-hidden="true"></i></div>
+        <div><div class="logo-name">PI planning assistant</div><div class="logo-sub">Preparation · Financial services</div></div>
+      </div>
+      <span class="step-badge"><i class="ti ti-circle-number-1" aria-hidden="true"></i> Intake</span>
+    </div>
+    <div class="s1-body">
+      <div class="s1-left">
+        <div class="section-title"><i class="ti ti-file-description" aria-hidden="true"></i> Initiatives</div>
+        <div class="section-sub">Upload a file or enter manually</div>
+        <div class="upload-box">
+          <i class="ti ti-upload" aria-hidden="true"></i>
+          <div class="upload-label">Drop Jira export, ADO export, or CSV</div>
+          <div class="upload-sub">or paste initiative descriptions below</div>
+        </div>
+        <div class="or-div">or add manually</div>
+        <div class="init-row">
+          <div class="init-num">1</div>
+          <div><div class="init-title">Customer returns enhancement</div><div class="init-sub">Enable store drop-off returns</div></div>
+        </div>
+        <div class="init-row">
+          <div class="init-num">2</div>
+          <div><div class="init-title">Partner API upgrade</div><div class="init-sub">Introduce new partner integrations</div></div>
+        </div>
+        <div class="init-row">
+          <div class="init-num">3</div>
+          <div><div class="init-title">Fraud detection enhancement</div><div class="init-sub">Enable real-time fraud scoring</div></div>
+        </div>
+        <div class="add-row"><i class="ti ti-plus" aria-hidden="true"></i> Add initiative</div>
+      </div>
+      <div class="s1-right">
+        <div class="section-title"><i class="ti ti-database" aria-hidden="true"></i> Knowledge base</div>
+        <div class="section-sub">AI will reason against these sources</div>
+        <div class="kb-item">
+          <div class="kb-icon conf"><i class="ti ti-notes" aria-hidden="true"></i></div>
+          <div style="flex:1"><div class="kb-name">Architecture overview</div><div class="kb-meta">Confluence · 12 pages · systems map</div></div>
+          <span class="kb-badge">Ready</span>
+        </div>
+        <div class="kb-item">
+          <div class="kb-icon arch"><i class="ti ti-sitemap" aria-hidden="true"></i></div>
+          <div style="flex:1"><div class="kb-name">Application inventory</div><div class="kb-meta">Confluence · 48 services listed</div></div>
+          <span class="kb-badge">Ready</span>
+        </div>
+        <div class="kb-item">
+          <div class="kb-icon team"><i class="ti ti-users" aria-hidden="true"></i></div>
+          <div style="flex:1"><div class="kb-name">Team ownership map</div><div class="kb-meta">8 teams · 34 service assignments</div></div>
+          <span class="kb-badge">Ready</span>
+        </div>
+        <div class="kb-item">
+          <div class="kb-icon inv"><i class="ti ti-file-code" aria-hidden="true"></i></div>
+          <div style="flex:1"><div class="kb-name">Integration dependency docs</div><div class="kb-meta">ADO · API contracts · 6 documents</div></div>
+          <span class="kb-badge">Ready</span>
+        </div>
+        <div class="add-row" style="margin-top:6px"><i class="ti ti-plus" aria-hidden="true"></i> Add knowledge source</div>
+      </div>
+    </div>
+    <div class="cta-bar">
+      <div class="cta-note">3 initiatives · 4 knowledge sources ready</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost"><i class="ti ti-device-floppy" aria-hidden="true"></i> Save draft</button>
+        <button class="btn btn-primary"><i class="ti ti-player-play" aria-hidden="true"></i> Analyse initiatives</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SCREEN 2: AGENT PIPELINE
+  ══════════════════════════════════════════ -->
+  <div class="screen-label">Screen 2 of 4 — Agent pipeline</div>
+  <div class="screen">
+    <div class="topbar">
+      <div class="logo-wrap">
+        <div class="logo-dot"><i class="ti ti-layers-subtract" aria-hidden="true"></i></div>
+        <div><div class="logo-name">PI planning assistant</div><div class="logo-sub">Preparation · Financial services</div></div>
+      </div>
+      <span class="step-badge"><i class="ti ti-circle-number-2" aria-hidden="true"></i> Analysing</span>
+    </div>
+    <div class="s2-body">
+      <div class="pipeline">
+        <div class="agent-col">
+          <div class="agent-circle done"><i class="ti ti-check" aria-hidden="true"></i></div>
+          <div class="agent-name">Initiative<br>analyser</div>
+          <div class="agent-status done">Complete</div>
+        </div>
+        <div class="agent-col">
+          <div class="agent-circle done"><i class="ti ti-check" aria-hidden="true"></i></div>
+          <div class="agent-name">Dependency<br>discovery</div>
+          <div class="agent-status done">Complete</div>
+        </div>
+        <div class="agent-col">
+          <div class="agent-circle active"><i class="ti ti-loader-2" aria-hidden="true"></i></div>
+          <div class="agent-name">Sequencing<br>agent</div>
+          <div class="agent-status active">Running…</div>
+        </div>
+        <div class="agent-col">
+          <div class="agent-circle wait"><i class="ti ti-clock" aria-hidden="true"></i></div>
+          <div class="agent-name">Risk<br>agent</div>
+          <div class="agent-status">Waiting</div>
+        </div>
+        <div class="agent-col">
+          <div class="agent-circle wait"><i class="ti ti-chart-dots" aria-hidden="true"></i></div>
+          <div class="agent-name">Visualisation<br>agent</div>
+          <div class="agent-status">Waiting</div>
+        </div>
+      </div>
+      <div class="progress-bar"><div class="progress-fill"></div></div>
+      <div class="findings-grid">
+        <div>
+          <div class="findings-label">Findings so far</div>
+          <div class="finding-card hi">
+            <span class="ftag sys">Systems found</span>
+            <div class="ftext">Customer returns touches 4 shared systems: PO Portal, Customer Profile, Order Management, Returns Service</div>
+          </div>
+          <div class="finding-card">
+            <span class="ftag dep">Inferred dependency</span>
+            <div class="ftext">Fraud Detection and Partner API both write to Customer Profile — schema conflict risk detected</div>
+            <div class="fsub">✦ Not stated in either initiative</div>
+          </div>
+          <div class="finding-card">
+            <span class="ftag dep">Explicit dependency</span>
+            <div class="ftext">Partner API upgrade required before Returns Enhancement can route cross-partner returns</div>
+          </div>
+        </div>
+        <div>
+          <div class="findings-label">Knowledge sources used</div>
+          <div class="finding-card" style="margin-bottom:7px"><div class="kb-used"><i class="ti ti-notes" aria-hidden="true"></i>Architecture overview — 3 pages read</div></div>
+          <div class="finding-card" style="margin-bottom:7px"><div class="kb-used"><i class="ti ti-users" aria-hidden="true"></i>Team ownership map — 2 teams matched</div></div>
+          <div class="finding-card" style="margin-bottom:7px"><div class="kb-used"><i class="ti ti-file-code" aria-hidden="true"></i>Integration docs — 1 API contract referenced</div></div>
+          <div class="ai-note">Sequencing agent is computing optimal order based on 5 dependencies found…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SCREEN 3: RESULTS (drawer closed)
+  ══════════════════════════════════════════ -->
+  <div class="screen-label">Screen 3 of 4 — Results</div>
+  <div class="screen">
+    <div class="topbar">
+      <div class="logo-wrap">
+        <div class="logo-dot"><i class="ti ti-layers-subtract" aria-hidden="true"></i></div>
+        <div><div class="logo-name">PI planning assistant</div><div class="logo-sub">Preparation · Financial services</div></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="step-badge success"><i class="ti ti-check" aria-hidden="true"></i> Analysis complete</span>
+        <button class="btn btn-ghost" style="font-size:12px;padding:5px 11px"><i class="ti ti-download" aria-hidden="true"></i> Export</button>
+      </div>
+    </div>
+    <div class="stat-row">
+      <div class="stat-card"><div class="stat-label">Initiatives analysed</div><div class="stat-val">3</div><div class="stat-sub">across 4 teams</div></div>
+      <div class="stat-card"><div class="stat-label">Dependencies found</div><div class="stat-val accent">8</div><div class="stat-sub">5 inferred by AI</div></div>
+      <div class="stat-card"><div class="stat-label">Risk flags</div><div class="stat-val danger">3</div><div class="stat-sub">1 high · 2 medium</div></div>
+      <div class="stat-card"><div class="stat-label">Recommended sequence</div><div class="stat-val">3</div><div class="stat-sub">steps with reasoning</div></div>
+    </div>
+    <div class="s3-main">
+      <div class="graph-area">
+        <div class="graph-title">
+          <span>Dependency graph</span>
+          <div class="graph-legend">
+            <div class="leg-item"><div class="leg-dot" style="background:#378ADD"></div>Platform</div>
+            <div class="leg-item"><div class="leg-dot" style="background:#1D9E75"></div>Compliance</div>
+            <div class="leg-item"><div class="leg-dot" style="background:#EF9F27"></div>Product</div>
+            <div class="leg-item"><div class="leg-dot" style="background:#D4537E"></div>Data</div>
+          </div>
+        </div>
+        <div class="graph-box">
+          <svg width="100%" viewBox="0 0 420 240" style="display:block">
+            <defs><marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round"/></marker></defs>
+            <line x1="105" y1="55" x2="190" y2="108" stroke="#9e9d97" stroke-width="1" marker-end="url(#arr)" opacity=".5"/>
+            <line x1="105" y1="55" x2="190" y2="158" stroke="#9e9d97" stroke-width="1" marker-end="url(#arr)" opacity=".5"/>
+            <line x1="315" y1="55" x2="230" y2="108" stroke="#378ADD" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arr)" opacity=".85"/>
+            <line x1="315" y1="55" x2="230" y2="158" stroke="#378ADD" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arr)" opacity=".85"/>
+            <line x1="210" y1="118" x2="210" y2="148" stroke="#9e9d97" stroke-width="1" marker-end="url(#arr)" opacity=".5"/>
+            <line x1="210" y1="170" x2="210" y2="198" stroke="#EF9F27" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arr)" opacity=".85"/>
+            <circle cx="105" cy="55" r="26" fill="#1D9E75" opacity=".18" stroke="#1D9E75" stroke-width="1.5"/><circle cx="105" cy="55" r="21" fill="#1D9E75"/>
+            <text x="105" y="51" text-anchor="middle" font-size="9" font-weight="600" fill="#fff" font-family="-apple-system,sans-serif">Returns</text>
+            <text x="105" y="63" text-anchor="middle" font-size="8" fill="rgba(255,255,255,.85)" font-family="-apple-system,sans-serif">Product</text>
+            <circle cx="315" cy="55" r="26" fill="#378ADD" opacity=".18" stroke="#378ADD" stroke-width="1.5"/><circle cx="315" cy="55" r="21" fill="#378ADD"/>
+            <text x="315" y="51" text-anchor="middle" font-size="9" font-weight="600" fill="#fff" font-family="-apple-system,sans-serif">Partner API</text>
+            <text x="315" y="63" text-anchor="middle" font-size="8" fill="rgba(255,255,255,.85)" font-family="-apple-system,sans-serif">Platform</text>
+            <circle cx="210" cy="123" r="26" fill="#EF9F27" opacity=".18" stroke="#EF9F27" stroke-width="1.5"/><circle cx="210" cy="123" r="21" fill="#EF9F27"/>
+            <text x="210" y="119" text-anchor="middle" font-size="8" font-weight="600" fill="#fff" font-family="-apple-system,sans-serif">Customer</text>
+            <text x="210" y="130" text-anchor="middle" font-size="8" fill="rgba(255,255,255,.85)" font-family="-apple-system,sans-serif">Profile</text>
+            <circle cx="210" cy="168" r="26" fill="#D4537E" opacity=".18" stroke="#D4537E" stroke-width="1.5"/><circle cx="210" cy="168" r="21" fill="#D4537E"/>
+            <text x="210" y="164" text-anchor="middle" font-size="8" font-weight="600" fill="#fff" font-family="-apple-system,sans-serif">Fraud</text>
+            <text x="210" y="175" text-anchor="middle" font-size="8" fill="rgba(255,255,255,.85)" font-family="-apple-system,sans-serif">Detection</text>
+            <circle cx="210" cy="213" r="26" fill="#888780" opacity=".15" stroke="#888780" stroke-width="1.5"/><circle cx="210" cy="213" r="21" fill="#888780" opacity=".75"/>
+            <text x="210" y="209" text-anchor="middle" font-size="8" font-weight="600" fill="#fff" font-family="-apple-system,sans-serif">Order</text>
+            <text x="210" y="220" text-anchor="middle" font-size="8" fill="rgba(255,255,255,.85)" font-family="-apple-system,sans-serif">Mgmt</text>
+            <line x1="12" y1="200" x2="36" y2="200" stroke="#9e9d97" stroke-width="1"/><text x="40" y="204" font-size="9" fill="#9e9d97" font-family="-apple-system,sans-serif">explicit</text>
+            <line x1="12" y1="214" x2="36" y2="214" stroke="#378ADD" stroke-width="1.5" stroke-dasharray="4 3"/><text x="40" y="218" font-size="9" fill="#9e9d97" font-family="-apple-system,sans-serif">inferred by AI</text>
+          </svg>
+        </div>
+        <div class="graph-hint"><i class="ti ti-click" aria-hidden="true"></i> Click any node or edge to open AI reasoning drawer</div>
+      </div>
+      <div class="side-panel">
+        <div class="side-tabs">
+          <div class="side-tab active">Risks</div>
+          <div class="side-tab">Sequence</div>
+          <div class="side-tab">Dependencies</div>
+        </div>
+        <div class="side-content">
+          <div class="risk-item">
+            <div class="risk-dot" style="background:var(--danger)"></div>
+            <div style="flex:1">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:3px">
+                <div class="risk-title">Schema conflict — Customer Profile</div><span class="sev sev-h">High</span>
+              </div>
+              <div class="risk-desc">Fraud Detection and Partner API both write to Customer Profile with no owner for conflict resolution.</div>
+              <div class="click-hint"><i class="ti ti-chevron-right" aria-hidden="true"></i> Click to see AI reasoning</div>
+            </div>
+          </div>
+          <div class="risk-item">
+            <div class="risk-dot" style="background:var(--warn)"></div>
+            <div style="flex:1">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:3px">
+                <div class="risk-title">Missing owner — Returns Service</div><span class="sev sev-m">Medium</span>
+              </div>
+              <div class="risk-desc">Returns Service is depended on by 2 initiatives but has no team assigned in the ownership map.</div>
+              <div class="click-hint"><i class="ti ti-chevron-right" aria-hidden="true"></i> Click to see AI reasoning</div>
+            </div>
+          </div>
+          <div class="risk-item">
+            <div class="risk-dot" style="background:var(--warn)"></div>
+            <div style="flex:1">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:3px">
+                <div class="risk-title">Capacity — Platform team</div><span class="sev sev-m">Medium</span>
+              </div>
+              <div class="risk-desc">Platform team owns Partner API and is depended on by both other initiatives.</div>
+              <div class="click-hint"><i class="ti ti-chevron-right" aria-hidden="true"></i> Click to see AI reasoning</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="exec-strip">
+      <div class="exec-label">AI summary</div>
+      <div class="exec-grid">
+        <div class="exec-cell">
+          <div class="exec-cell-label">Recommended sequence</div>
+          <div class="exec-cell-val">Partner API → Fraud Detection → Returns Enhancement</div>
+        </div>
+        <div class="exec-cell">
+          <div class="exec-cell-label">Key risk to resolve before PI</div>
+          <div class="exec-cell-val">Customer Profile schema ownership — no team assigned, 2 initiatives impacted</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SCREEN 4: RESULTS WITH DRAWER OPEN
+  ══════════════════════════════════════════ -->
+  <div class="screen-label">Screen 4 of 4 — Results with AI reasoning drawer open</div>
+  <div class="screen">
+    <div class="topbar">
+      <div class="logo-wrap">
+        <div class="logo-dot"><i class="ti ti-layers-subtract" aria-hidden="true"></i></div>
+        <div><div class="logo-name">PI planning assistant</div><div class="logo-sub">Preparation · Financial services</div></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="step-badge success"><i class="ti ti-check" aria-hidden="true"></i> Analysis complete</span>
+        <button class="btn btn-ghost" style="font-size:12px;padding:5px 11px"><i class="ti ti-download" aria-hidden="true"></i> Export</button>
+      </div>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-card"><div class="stat-label">Initiatives analysed</div><div class="stat-val">3</div><div class="stat-sub">across 4 teams</div></div>
+      <div class="stat-card"><div class="stat-label">Dependencies found</div><div class="stat-val accent">8</div><div class="stat-sub">5 inferred by AI</div></div>
+      <div class="stat-card"><div class="stat-label">Risk flags</div><div class="stat-val danger">3</div><div class="stat-sub">1 high · 2 medium</div></div>
+      <div class="stat-card"><div class="stat-label">Recommended sequence</div><div class="stat-val">3</div><div class="stat-sub">steps with reasoning</div></div>
+    </div>
+
+    <div class="s4-outer">
+      <div class="s4-main dimmed">
+        <div class="graph-area">
+          <div class="graph-title">
+            <span>Dependency graph</span>
+            <div class="graph-legend">
+              <div class="leg-item"><div class="leg-dot" style="background:#378ADD"></div>Platform</div>
+              <div class="leg-item"><div class="leg-dot" style="background:#1D9E75"></div>Compliance</div>
+              <div class="leg-item"><div class="leg-dot" style="background:#EF9F27"></div>Product</div>
+              <div class="leg-item"><div class="leg-dot" style="background:#D4537E"></div>Data</div>
+            </div>
+          </div>
+          <div class="graph-box">
+            <svg width="100%" viewBox="0 0 420 240" style="display:block">
+              <defs><marker id="arr2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round"/></marker></defs>
+              <line x1="105" y1="55" x2="190" y2="108" stroke="#9e9d97" stroke-width="1" marker-end="url(#arr2)" opacity=".3"/>
+              <line x1="105" y1="55" x2="190" y2="158" stroke="#9e9d97" stroke-width="1" marker-end="url(#arr2)" opacity=".3"/>
+              <line x1="315" y1="55" x2="230" y2="108" stroke="#378ADD" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#arr2)" opacity="1"/>
+              <line x1="315" y1="55" x2="230" y2="158" stroke="#378ADD" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#arr2)" opacity="1"/>
+              <line x1="210" y1="118" x2="210" y2="148" stroke="#9e9d97" stroke-width="1" marker-end="url(#arr2)" opacity=".3"/>
+              <line x1="210" y1="170" x2="210" y2="198" stroke="#EF9F27" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arr2)" opacity=".3"/>
+              <circle cx="105" cy="55" r="26" fill="#1D9E75" opacity=".1" stroke="#1D9E75" stroke-width="1" opacity=".3"/><circle cx="105" cy="55" r="21" fill="#1D9E75" opacity=".4"/>
+              <text x="105" y="51" text-anchor="middle" font-size="9" font-weight="600" fill="#fff" font-family="-apple-system,sans-serif" opacity=".4">Returns</text>
+              <text x="105" y="63" text-anchor="middle" font-size="8" fill="rgba(255,255,255,.5)" font-family="-apple-system,sans-serif">Product</text>
+              <!-- Highlighted node: Partner API -->
+              <circle cx="315" cy="55" r="30" fill="#378ADD" opacity=".25" stroke="#378ADD" stroke-width="2"/>
+              <circle cx="315" cy="55" r="21" fill="#378ADD"/>
+              <text x="315" y="51" text-anchor="middle" font-size="9" font-weight="600" fill="#fff" font-family="-apple-system,sans-serif">Partner API</text>
+              <text x="315" y="63" text-anchor="middle" font-size="8" fill="rgba(255,255,255,.85)" font-family="-apple-system,sans-serif">Platform</text>
+              <!-- Highlighted node: Customer Profile -->
+              <circle cx="210" cy="123" r="30" fill="#EF9F27" opacity=".25" stroke="#EF9F27" stroke-width="2"/>
+              <circle cx="210" cy="123" r="21" fill="#EF9F27"/>
+              <text x="210" y="119" text-anchor="middle" font-size="8" font-weight="600" fill="#fff" font-family="-apple-system,sans-serif">Customer</text>
+              <text x="210" y="130" text-anchor="middle" font-size="8" fill="rgba(255,255,255,.85)" font-family="-apple-system,sans-serif">Profile</text>
+              <circle cx="210" cy="168" r="26" fill="#D4537E" opacity=".1" stroke="#D4537E" stroke-width="1" opacity=".3"/><circle cx="210" cy="168" r="21" fill="#D4537E" opacity=".4"/>
+              <text x="210" y="164" text-anchor="middle" font-size="8" font-weight="600" fill="#fff" font-family="-apple-system,sans-serif" opacity=".4">Fraud</text>
+              <text x="210" y="175" text-anchor="middle" font-size="8" fill="rgba(255,255,255,.5)" font-family="-apple-system,sans-serif">Detection</text>
+              <circle cx="210" cy="213" r="26" fill="#888780" opacity=".08" stroke="#888780" stroke-width="1" opacity=".3"/><circle cx="210" cy="213" r="21" fill="#888780" opacity=".3"/>
+              <text x="210" y="209" text-anchor="middle" font-size="8" font-weight="600" fill="#fff" font-family="-apple-system,sans-serif" opacity=".4">Order</text>
+              <text x="210" y="220" text-anchor="middle" font-size="8" fill="rgba(255,255,255,.4)" font-family="-apple-system,sans-serif">Mgmt</text>
+            </svg>
+          </div>
+          <div class="graph-hint"><i class="ti ti-click" aria-hidden="true"></i> Click any node or edge to open AI reasoning drawer</div>
+        </div>
+        <div class="side-panel">
+          <div class="side-tabs">
+            <div class="side-tab active">Risks</div>
+            <div class="side-tab">Sequence</div>
+            <div class="side-tab">Dependencies</div>
+          </div>
+          <div class="side-content">
+            <div class="risk-item active-row">
+              <div class="risk-dot" style="background:var(--danger)"></div>
+              <div style="flex:1">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:3px">
+                  <div class="risk-title">Schema conflict — Customer Profile</div><span class="sev sev-h">High</span>
+                </div>
+                <div class="risk-desc">Fraud Detection and Partner API both write to Customer Profile with no owner for conflict resolution.</div>
+                <div style="font-size:10px;color:var(--accent);margin-top:4px;display:flex;align-items:center;gap:3px"><i class="ti ti-arrow-right" aria-hidden="true"></i> Reasoning open →</div>
+              </div>
+            </div>
+            <div class="risk-item">
+              <div class="risk-dot" style="background:var(--warn)"></div>
+              <div style="flex:1">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:3px">
+                  <div class="risk-title">Missing owner — Returns Service</div><span class="sev sev-m">Medium</span>
+                </div>
+                <div class="risk-desc">Returns Service is depended on by 2 initiatives but has no team assigned.</div>
+              </div>
+            </div>
+            <div class="risk-item">
+              <div class="risk-dot" style="background:var(--warn)"></div>
+              <div style="flex:1">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:3px">
+                  <div class="risk-title">Capacity — Platform team</div><span class="sev sev-m">Medium</span>
+                </div>
+                <div class="risk-desc">Platform team owns Partner API and is depended on by both other initiatives.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- The drawer -->
+      <div class="drawer">
+        <div class="drawer-topbar">
+          <div class="drawer-title">AI reasoning</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <button class="btn btn-ghost" style="font-size:11px;padding:4px 9px"><i class="ti ti-chevron-up" aria-hidden="true"></i></button>
+            <button class="btn btn-ghost" style="font-size:11px;padding:4px 9px"><i class="ti ti-chevron-down" aria-hidden="true"></i></button>
+            <div class="drawer-close"><i class="ti ti-x" aria-hidden="true"></i></div>
+          </div>
+        </div>
+
+        <div class="drawer-body">
+          <span class="drawer-risk-badge high"><i class="ti ti-alert-triangle" aria-hidden="true"></i> High risk · Schema conflict</span>
+
+          <div class="drawer-section">
+            <div class="drawer-section-label">Why the AI flagged this</div>
+            <div class="reasoning-box">
+              Both Fraud Detection Enhancement and Partner API Upgrade write to the Customer Profile service — but neither initiative mentions the other. The AI detected this by cross-reading their system descriptions against the application inventory, where Customer Profile is listed as a shared write-target.<br><br>
+              If both initiatives proceed in parallel, their schema changes will collide at the Customer Profile layer with no team nominated to arbitrate. This is the most common cause of mid-PI rollback in multi-team programmes.
+            </div>
+          </div>
+
+          <div class="drawer-section">
+            <div class="drawer-section-label">Initiatives affected</div>
+            <div class="affected-item"><div class="affected-dot" style="background:#378ADD"></div>Partner API upgrade — writes new partner_id field to Customer Profile</div>
+            <div class="affected-item"><div class="affected-dot" style="background:#D4537E"></div>Fraud Detection — reads and writes fraud_score field to Customer Profile</div>
+          </div>
+
+          <div class="drawer-section">
+            <div class="drawer-section-label">Knowledge sources used</div>
+            <div class="sources-item"><i class="ti ti-sitemap" aria-hidden="true"></i>Application inventory — Customer Profile listed as shared write-target</div>
+            <div class="sources-item"><i class="ti ti-users" aria-hidden="true"></i>Team ownership map — no team assigned to Customer Profile schema</div>
+          </div>
+
+          <div class="drawer-section">
+            <div class="drawer-section-label">Suggested actions</div>
+            <div class="prompt-chip"><i class="ti ti-send" aria-hidden="true"></i> Who should own Customer Profile schema?</div>
+            <div class="prompt-chip"><i class="ti ti-send" aria-hidden="true"></i> What happens if we sequence these apart?</div>
+            <div class="prompt-chip"><i class="ti ti-send" aria-hidden="true"></i> Show all initiatives touching Customer Profile</div>
+          </div>
+        </div>
+
+        <div class="drawer-footer">
+          <div class="drawer-actions">
+            <button class="btn btn-ghost" style="flex:1;justify-content:center"><i class="ti ti-flag" aria-hidden="true"></i> Flag for PI planning</button>
+            <button class="btn btn-primary" style="flex:1;justify-content:center"><i class="ti ti-copy" aria-hidden="true"></i> Copy reasoning</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="exec-strip">
+      <div class="exec-label">AI summary</div>
+      <div class="exec-grid">
+        <div class="exec-cell">
+          <div class="exec-cell-label">Recommended sequence</div>
+          <div class="exec-cell-val">Partner API → Fraud Detection → Returns Enhancement</div>
+        </div>
+        <div class="exec-cell">
+          <div class="exec-cell-label">Key risk to resolve before PI</div>
+          <div class="exec-cell-val">Customer Profile schema ownership — no team assigned, 2 initiatives impacted</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
