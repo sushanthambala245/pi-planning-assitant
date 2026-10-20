@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Co-Pilot for PI — Unified Architecture (demo and production)</title>
+<style>
+:root{
+  color-scheme: light;
+  --bg:#f7f8fa; --surface:#ffffff; --surface2:#eef1f5; --ink:#14202e; --ink2:#46566b; --line:#d5dbe3;
+  --accent:#0b5cad; --accent-soft:#e1edf9; --ok:#17794f; --warn:#a15c00;
+  --svg-fill:#ffffff; --svg-fill2:#eef1f5; --svg-stroke:#9aa6b6; --svg-text:#14202e; --svg-text2:#46566b;
+  --demo:#e6f4ec; --demo-stroke:#2a9d6a; --prod:#e1edf9; --prod-stroke:#2f7fd0; --hitl:#fff4d6; --hitl-stroke:#c28a00;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    color-scheme: dark;
+    --bg:#0f151d; --surface:#161e29; --surface2:#1d2734; --ink:#e6ecf3; --ink2:#a7b4c4; --line:#2c3846;
+    --accent:#6db0f2; --accent-soft:#16283c; --ok:#58c79a; --warn:#f0b35a;
+    --svg-fill:#161e29; --svg-fill2:#1d2734; --svg-stroke:#5b6a7d; --svg-text:#e6ecf3; --svg-text2:#a7b4c4;
+    --demo:#14302a; --demo-stroke:#3dbb86; --prod:#16283c; --prod-stroke:#5aa0ec; --hitl:#3a3014; --hitl-stroke:#d9a520;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+main{max-width:1080px;margin:0 auto;padding:40px 24px 80px}
+h1{font-family:Georgia,"Times New Roman",serif;font-size:2.3rem;line-height:1.15;margin:0 0 12px}
+h2{font-family:Georgia,"Times New Roman",serif;font-size:1.5rem;margin:48px 0 12px;padding-top:18px;border-top:1px solid var(--line)}
+h3{font-size:1.05rem;margin:24px 0 6px}
+p{margin:0 0 12px;max-width:76ch}
+.lede{font-size:1.1rem;color:var(--ink2);max-width:70ch}
+ul,ol{margin:0 0 14px;padding-left:22px;max-width:78ch}li{margin:3px 0}
+table{border-collapse:collapse;width:100%;font-size:14px;margin:10px 0 20px;background:var(--surface)}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--surface2);font-weight:600}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.88em;background:var(--surface2);padding:1px 5px;border-radius:3px}
+.tbl{overflow-x:auto}
+.callout{border-left:4px solid var(--accent);background:var(--accent-soft);padding:12px 16px;margin:16px 0;max-width:82ch;border-radius:0 4px 4px 0}
+.callout.warn{border-left-color:var(--hitl-stroke);background:var(--hitl)}
+.callout b:first-child{display:block;margin-bottom:2px}
+figure{margin:20px 0 28px}
+figure .fig{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:10px;overflow-x:auto}
+figcaption{font-size:13px;color:var(--ink2);margin-top:8px}
+svg{display:block;max-width:100%;height:auto}
+svg text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;fill:var(--svg-text)}
+svg .sub{fill:var(--svg-text2)}
+svg .layer{fill:var(--svg-fill2);stroke:var(--svg-stroke);stroke-width:1;stroke-dasharray:5 4}
+svg .box{fill:var(--svg-fill);stroke:var(--svg-stroke);stroke-width:1.2}
+svg .demo{fill:var(--demo);stroke:var(--demo-stroke);stroke-width:1.6}
+svg .prod{fill:var(--prod);stroke:var(--prod-stroke);stroke-width:1.6}
+svg .hitl{fill:var(--hitl);stroke:var(--hitl-stroke);stroke-width:1.6}
+svg .arrow{stroke:var(--svg-stroke);stroke-width:1.4;fill:none}
+svg .lbl{font-size:12px} svg .ttl{font-size:13px;font-weight:700} svg .small{font-size:11px}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:10px;border:1px solid var(--line);background:var(--surface2);color:var(--ink2);margin-right:4px}
+.tag.det{border-color:var(--demo-stroke);color:var(--ok)}
+.tag.llm{border-color:var(--prod-stroke);color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (max-width:700px){h1{font-size:1.8rem}}
+</style>
+</head>
+<body>
+<main>
+
+<h1>Co-Pilot for PI: one architecture, two source modes</h1>
+<p class="lede">The design is identical in the hackathon demo and in a bank deployment. The only thing that changes is the source adapter: CSV and mock files today, live Jira, GitHub, Confluence, ServiceNow and Archer later.</p>
+
+<h2 style="border-top:none;margin-top:24px">1. The central idea</h2>
+<p>The demo has no Jira, GitHub or ServiceNow, so every source is a file in <code>/data</code>. Rather than build a throwaway demo and a separate enterprise design, this architecture puts a <b>source adapter interface</b> between the sources and everything else. Both modes produce the same normalised records, so the context store, agents, rules, UI and audit trail never know which mode they are in.</p>
+<ul>
+  <li><b>Demo mode:</b> file adapters read the provided data package plus four small mocks. Runs on one laptop.</li>
+  <li><b>Production mode:</b> read-only connectors read the real systems. Same agents, same rules, same screens.</li>
+  <li><b>Consequence for the pitch:</b> everything shown in the demo is real behaviour of the production design. Only the plumbing in the bottom layer is swapped, and the swap is a configuration change plus connector work, not a redesign.</li>
+</ul>
+
+<h2 id="arch">2. Unified architecture</h2>
+<figure>
+<div class="fig">
+<svg viewBox="0 0 980 720" role="img" aria-label="Unified architecture: UI, agent workflow, context store, source adapter seam with demo and production lanes, and sources">
+<defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#9aa6b6" stroke-width="1.6" stroke-linecap="round"/></marker></defs>
+
+<!-- UI -->
+<rect class="layer" x="10" y="10" width="760" height="86" rx="8"/>
+<text class="ttl" x="24" y="30">1 · Experience (browser UI + API, events streamed over SSE)</text>
+<rect class="box" x="24" y="40" width="130" height="46" rx="5"/><text class="lbl" x="34" y="60">Intake</text><text class="small sub" x="34" y="76">pick or upload</text>
+<rect class="box" x="164" y="40" width="130" height="46" rx="5"/><text class="lbl" x="174" y="60">Agent pipeline</text><text class="small sub" x="174" y="76">live agent events</text>
+<rect class="box" x="304" y="40" width="130" height="46" rx="5"/><text class="lbl" x="314" y="60">Results</text><text class="small sub" x="314" y="76">graph · risks · order</text>
+<rect class="box" x="444" y="40" width="150" height="46" rx="5"/><text class="lbl" x="454" y="60">Reasoning drawer</text><text class="small sub" x="454" y="76">evidence + Ask chat</text>
+<rect class="hitl" x="604" y="40" width="152" height="46" rx="5"/><text class="lbl" x="614" y="60">Review and approve</text><text class="small sub" x="614" y="76">challenge · export</text>
+
+<!-- Agents -->
+<rect class="layer" x="10" y="110" width="760" height="232" rx="8"/>
+<text class="ttl" x="24" y="130">2 · Agent workflow (shared typed run state)</text>
+<rect class="box" x="24" y="140" width="732" height="30" rx="5"/><text class="lbl" x="34" y="160">Supervisor: routing · retries (max 2) · event stream · audit trail · pinned snapshot / prompt / model / rule versions</text>
+<rect class="box" x="24" y="180" width="110" height="64" rx="5"/><text class="lbl" x="32" y="200">Initiative</text><text class="lbl" x="32" y="214">analyser</text><text class="small sub" x="32" y="232">LLM + RAG</text>
+<rect class="box" x="144" y="180" width="236" height="64" rx="5"/><text class="lbl" x="152" y="200">Dependency discovery (parallel)</text><text class="small sub" x="152" y="216">① explicit text  ② code manifests</text><text class="small sub" x="152" y="231">③ shared-service ownership</text>
+<rect class="box" x="390" y="180" width="110" height="64" rx="5"/><text class="lbl" x="398" y="200">Evidence</text><text class="lbl" x="398" y="214">verifier</text><text class="small sub" x="398" y="232">critic loop</text>
+<rect class="box" x="510" y="180" width="110" height="64" rx="5"/><text class="lbl" x="518" y="200">Sequencing</text><text class="small sub" x="518" y="216">order · cycles</text><text class="small sub" x="518" y="231">capacity</text>
+<rect class="box" x="630" y="180" width="126" height="64" rx="5"/><text class="lbl" x="638" y="200">Risk (DRI-X)</text><text class="small sub" x="638" y="216">policy-as-code</text><text class="small sub" x="638" y="231">+ rationale</text>
+<rect class="box" x="24" y="254" width="200" height="40" rx="5"/><text class="lbl" x="34" y="272">Visualisation agent</text><text class="small sub" x="34" y="287">graph JSON · KPI strip · summary</text>
+<rect class="box" x="234" y="254" width="200" height="40" rx="5"/><text class="lbl" x="244" y="272">Ask / Explain agent</text><text class="small sub" x="244" y="287">cited answers, ranked candidates</text>
+<rect class="hitl" x="444" y="254" width="312" height="40" rx="5"/><text class="lbl" x="454" y="272">Human gate</text><text class="small sub" x="454" y="287">challenge re-runs sequencing · approve → export / propose</text>
+<text class="small sub" x="24" y="316">Deterministic code decides (order, cycles, capacity, DRI rules). The LLM extracts, explains and answers, never decides.</text>
+<text class="small sub" x="24" y="332">Same agents, tools and prompts in demo and production.</text>
+
+<!-- Context -->
+<rect class="layer" x="10" y="356" width="760" height="130" rx="8"/>
+<text class="ttl" x="24" y="376">3 · Context store (same schema in both modes)</text>
+<rect class="box" x="24" y="386" width="140" height="88" rx="5"/><text class="lbl" x="34" y="406">Entity resolver</text><text class="small sub" x="34" y="422">epic → repo → service</text><text class="small sub" x="34" y="436">→ team · aliases kept</text><text class="small sub" x="34" y="450">unresolved → human</text>
+<rect class="box" x="174" y="386" width="140" height="88" rx="5"/><text class="lbl" x="184" y="406">Knowledge graph</text><text class="small sub" x="184" y="422">nodes + typed edges</text><text class="small sub" x="184" y="436">source · confidence</text><text class="small sub" x="184" y="450">in-Jira flag</text>
+<rect class="box" x="324" y="386" width="140" height="88" rx="5"/><text class="lbl" x="334" y="406">Tabular store</text><text class="small sub" x="334" y="422">capacity · outcomes</text><text class="small sub" x="334" y="436">owners · directory</text><text class="small sub" x="334" y="450">benchmarks</text>
+<rect class="box" x="474" y="386" width="140" height="88" rx="5"/><text class="lbl" x="484" y="406">Vector index</text><text class="small sub" x="484" y="422">epics · statements</text><text class="small sub" x="484" y="436">docs · chat snippets</text><text class="small sub" x="484" y="450">retrieval only</text>
+<rect class="box" x="624" y="386" width="132" height="88" rx="5"/><text class="lbl" x="634" y="406">Evidence + audit</text><text class="small sub" x="634" y="422">excerpts · rationale</text><text class="small sub" x="634" y="436">decisions · run log</text><text class="small sub" x="634" y="450">append-only</text>
+
+<!-- Seam -->
+<rect class="layer" x="10" y="500" width="760" height="124" rx="8"/>
+<text class="ttl" x="24" y="520">4 · Source adapter interface: the only layer that differs</text>
+<rect class="box" x="24" y="530" width="732" height="26" rx="5"/><text class="lbl" x="34" y="547">pull(scope) → normalised records · health() → status · changes(since) → events · same record schema either side</text>
+<rect class="demo" x="24" y="564" width="356" height="50" rx="5"/><text class="lbl" x="34" y="584">Demo adapters</text><text class="small sub" x="34" y="600">CSV / Markdown / text loaders + pydantic validation</text>
+<rect class="prod" x="390" y="564" width="366" height="50" rx="5"/><text class="lbl" x="400" y="584">Production connectors</text><text class="small sub" x="400" y="600">Read-only: REST, webhooks, GitHub App · scoped service accounts</text>
+
+<!-- Sources -->
+<rect class="demo" x="10" y="640" width="372" height="70" rx="8"/>
+<text class="ttl" x="24" y="660">Demo sources (all synthetic)</text>
+<text class="small" x="24" y="678">S1–S10 provided CSVs · M1 Confluence-style docs · M2 Archer controls</text>
+<text class="small" x="24" y="694">M3 Slack snippets · M4 spaghetti sheet (comparison view)</text>
+<rect class="prod" x="398" y="640" width="372" height="70" rx="8"/>
+<text class="ttl" x="412" y="660">Production systems of record (unchanged)</text>
+<text class="small" x="412" y="678">Jira · GitHub · Confluence · ServiceNow · Archer GRC</text>
+<text class="small" x="412" y="694">Slack (opt-in) · Miro / Spaghetti Sheet (one-time seed)</text>
+<path class="arrow" d="M196 640 V614" marker-end="url(#a)"/>
+<path class="arrow" d="M580 640 V614" marker-end="url(#a)"/>
+<path class="arrow" d="M390 500 V486" marker-start="url(#a)"/>
+<path class="arrow" d="M390 356 V342" marker-start="url(#a)"/>
+<path class="arrow" d="M390 110 V96" marker-start="url(#a)"/>
+
+<!-- Cross-cutting -->
+<rect class="layer" x="790" y="10" width="180" height="700" rx="8"/>
+<text class="ttl" x="804" y="30">Support services</text>
+<rect class="box" x="802" y="46" width="156" height="92" rx="5"/><text class="lbl" x="812" y="66">LLM adapter</text><text class="small sub" x="812" y="82">Provider-agnostic</text><text class="small sub" x="812" y="96">JSON-schema output</text><text class="small sub" x="812" y="110">Retry · token log</text><text class="small sub" x="812" y="124">Demo: API · or local</text>
+<rect class="box" x="802" y="148" width="156" height="92" rx="5"/><text class="lbl" x="812" y="168">Prompt registry</text><text class="small sub" x="812" y="184">Versioned files</text><text class="small sub" x="812" y="198">Change-controlled</text><text class="small sub" x="812" y="212">Retrieved text is</text><text class="small sub" x="812" y="226">data, never instructions</text>
+<rect class="box" x="802" y="250" width="156" height="92" rx="5"/><text class="lbl" x="812" y="270">Evals</text><text class="small sub" x="812" y="286">Extraction vs held-out</text><text class="small sub" x="812" y="300">labelled snippets</text><text class="small sub" x="812" y="314">DRI back-test on past PIs</text><text class="small sub" x="812" y="328">New vs already-in-Jira</text>
+<rect class="box" x="802" y="352" width="156" height="92" rx="5"/><text class="lbl" x="812" y="372">Guardrails</text><text class="small sub" x="812" y="388">No auto-commit</text><text class="small sub" x="812" y="402">No ownership writes</text><text class="small sub" x="812" y="416">Write allow-list</text><text class="small sub" x="812" y="430">Regulated-item tag</text>
+<rect class="box" x="802" y="454" width="156" height="92" rx="5"/><text class="lbl" x="812" y="474">Trace and audit</text><text class="small sub" x="812" y="490">JSONL run log</text><text class="small sub" x="812" y="504">Inputs · evidence ·</text><text class="small sub" x="812" y="518">model · decision</text><text class="small sub" x="812" y="532">Prod: tamper-evident</text>
+<rect class="box" x="802" y="556" width="156" height="92" rx="5"/><text class="lbl" x="812" y="576">Degraded mode</text><text class="small sub" x="812" y="592">Source stale or down</text><text class="small sub" x="812" y="606">→ banner + partial</text><text class="small sub" x="812" y="620">result, never silent</text>
+</svg>
+</div>
+<figcaption>Figure 1. Layers 1 to 3 and the support services are identical in both modes. Green is demo-only, blue is production-only; the interface between them is the contract.</figcaption>
+</figure>
+
+<h2 id="agents">3. Agents (merged design)</h2>
+<p>This combines the hackathon plan's critic loop, parallel discovery and Ask agent with the enterprise design's evidence and audit rules.</p>
+<div class="tbl"><table>
+<thead><tr><th>Agent</th><th>Job</th><th>Method</th><th>Output</th></tr></thead>
+<tbody>
+<tr><td>Initiative analyser</td><td>Read initiative and epic text; extract systems, capabilities and teams touched</td><td><span class="tag llm">LLM</span> structured extraction + retrieval</td><td>Systems per initiative</td></tr>
+<tr><td>Dependency discovery</td><td>Three evidence tools run in parallel: explicit text ("blocked on"), code (repo-to-repo manifests become team-to-team edges), ownership (two initiatives touching one service)</td><td>① <span class="tag llm">LLM</span> ② <span class="tag det">code</span> ③ <span class="tag det">join</span></td><td>Edges with kind, evidence reference, confidence, in-Jira flag</td></tr>
+<tr><td>Evidence verifier</td><td>Reject any edge without a citable source; weak edges go back for a narrower query (max 2 retries); dedupe and merge</td><td><span class="tag det">cite check</span> + light LLM</td><td>Verified edges</td></tr>
+<tr><td>Sequencing</td><td>Order initiatives; show the chain and why; respect capacity and control gates</td><td><span class="tag det">topological sort, cycle finder, capacity check</span>; LLM writes the rationale only</td><td>Ordered plan with reasons</td></tr>
+<tr><td>Risk (DRI)</td><td>Evaluate DRI-X-001 to 007 and rank Blocker / Warning / Info</td><td><span class="tag det">rule functions</span>; LLM may explain but cannot create a Blocker</td><td>Findings with severity and sources</td></tr>
+<tr><td>Visualisation</td><td>Graph payload (documented vs inferred edges), KPI strip, executive summary, drawer content</td><td>Templates + <span class="tag llm">LLM</span> prose; every sentence cites evidence</td><td>UI payload</td></tr>
+<tr><td>Ask / Explain</td><td>Answer questions in the drawer ("what if we sequence apart?", "show all initiatives touching X")</td><td><span class="tag llm">LLM</span> over graph, SQL and vector search; cited</td><td>Cited answers</td></tr>
+</tbody></table></div>
+<p>Capacity is not a separate agent here: the capacity check lives in the Sequencing agent's tools and DRI-X-003 in the Risk agent, both deterministic and both reading the same tabular store.</p>
+
+<h2 id="flow">4. Run flow</h2>
+<ol>
+  <li><b>Load.</b> The adapters pull from the active mode, validate, resolve entities, and freeze a snapshot ID. Demo: runs once at startup. Production: scheduled pull plus change events.</li>
+  <li><b>Intake.</b> The user selects initiatives (or uploads a Jira-style CSV). The API starts a run and streams agent events to the pipeline screen.</li>
+  <li><b>Analyse and discover.</b> The analyser extracts systems; discovery runs its three evidence tools in parallel.</li>
+  <li><b>Verify.</b> The verifier drops ungrounded edges and re-queries weak ones, and each edge is tagged already-in-Jira or newly inferred.</li>
+  <li><b>Sequence and score.</b> Algorithms order the work and find cycles; DRI rules score blockers using capacity, ownership, control status and history.</li>
+  <li><b>Review.</b> Results and drawer show the chain and sources. The reviewer can <b>challenge</b> (add a constraint such as "Payments goes first", which re-runs Sequencing and Risk) or <b>approve</b>.</li>
+  <li><b>Export or propose.</b> Approved items become Jira link and sequence-note proposals plus an audit JSON. Demo: file export only. Production: the same proposals enter an approval inbox and, after named sign-off, are written by a separate least-privilege service.</li>
+</ol>
+
+<h2 id="map">5. Source mapping: what stands in for what</h2>
+<div class="tbl"><table>
+<thead><tr><th>ID</th><th>Demo input</th><th>Production source</th><th>Used by</th></tr></thead>
+<tbody>
+<tr><td>S1</td><td>initiatives.csv</td><td>Jira initiatives + Confluence narratives</td><td>Analyser, Sequencing, Ask</td></tr>
+<tr><td>S2</td><td>epics_jira.csv</td><td>Jira epics, comments</td><td>Analyser, Discovery ①</td></tr>
+<tr><td>S3</td><td>dependency_statements.csv</td><td>Derived from Jira comments / Slack</td><td>Discovery ①, Verifier, Evals</td></tr>
+<tr><td>S4</td><td>github_repos.csv</td><td>GitHub repos and manifests</td><td>Discovery ②, Risk</td></tr>
+<tr><td>S5</td><td>team_capacity.csv</td><td>PMO / Jira capacity</td><td>Sequencing, Risk (X-003)</td></tr>
+<tr><td>S6</td><td>team_directory.csv</td><td>Org directory</td><td>Analyser, Sequencing, Ask</td></tr>
+<tr><td>S7</td><td>service_ownership_map.csv</td><td>ServiceNow ownership records</td><td>Discovery ③, Risk (X-002)</td></tr>
+<tr><td>S8</td><td>historical_pi_outcomes.csv</td><td>Retros / Jira history</td><td>Risk calibration, Evals</td></tr>
+<tr><td>S9</td><td>kpi_benchmarks.csv</td><td>PMO / industry benchmarks</td><td>Visualisation (KPI strip)</td></tr>
+<tr><td>S10</td><td>Jira tagged-links export</td><td>Jira "blocked by" links</td><td>Verifier, Visualisation (baseline)</td></tr>
+<tr><td>M1</td><td>Mock Confluence docs (.md)</td><td>Confluence architecture, app inventory, API contracts</td><td>Analyser, Discovery, Risk (X-005), Ask</td></tr>
+<tr><td>M2</td><td>Mock archer_controls.csv</td><td>Archer GRC sign-off status</td><td>Risk, Sequencing gates</td></tr>
+<tr><td>M3</td><td>Mock slack_snippets.txt</td><td>Slack channels (opt-in)</td><td>Discovery ①, Risk (X-007)</td></tr>
+<tr><td>M4</td><td>Mock spaghetti_sheet.xlsx</td><td>Spaghetti Sheet / Miro (one-time seed)</td><td>Visualisation (today vs Co-Pilot)</td></tr>
+</tbody></table></div>
+
+<h2 id="swap">6. What changes between demo and production</h2>
+<div class="tbl"><table>
+<thead><tr><th>Component</th><th>Demo implementation</th><th>Production implementation</th><th>Changes the design?</th></tr></thead>
+<tbody>
+<tr><td>Source adapters</td><td>File loaders</td><td>Read-only connectors</td><td>No: same interface and records</td></tr>
+<tr><td>Orchestration</td><td>LangGraph state machine</td><td>Same graph run inside a durable workflow engine for long waits and approvals</td><td>No: node logic reused</td></tr>
+<tr><td>Knowledge graph</td><td>NetworkX in memory</td><td>Postgres with graph queries (or managed graph DB)</td><td>No: same node and edge schema</td></tr>
+<tr><td>Tabular store</td><td>DuckDB / SQLite</td><td>Postgres</td><td>No</td></tr>
+<tr><td>Vector index</td><td>Chroma / FAISS</td><td>pgvector or managed vector service, entitlement-filtered</td><td>No</td></tr>
+<tr><td>LLM access</td><td>Provider API (or local model offline); only synthetic text snippets sent</td><td>Enterprise endpoint through a gateway: private networking, no training on inputs, retention terms</td><td>No: behind the LLM adapter</td></tr>
+<tr><td>Jira output</td><td>Export JSON / CSV</td><td>Approval inbox, then least-privilege write with read-back verification</td><td>Adds one gated step</td></tr>
+<tr><td>Access control</td><td>Single user</td><td>SSO, roles by ART, separate read and write principals</td><td>Adds a layer</td></tr>
+<tr><td>Audit log</td><td>JSONL file</td><td>Append-only, tamper-evident, retention policy</td><td>No: same record shape</td></tr>
+<tr><td>Freshness</td><td>Static snapshot</td><td>Change stream and snapshot diffs; living-record monitor (Phase 2)</td><td>Adds a monitor</td></tr>
+</tbody></table></div>
+
+<h2 id="fixes">7. Corrections built into this version</h2>
+<p>These come from reviewing the earlier demo plan against the case brief.</p>
+<div class="callout warn"><b>Evaluation leakage</b>S3 (labelled dependency statements) is used both as few-shot examples and as ground truth. Split it: one portion for prompts, a held-out portion for precision and recall. Report only the held-out numbers.</div>
+<div class="callout warn"><b>Ownership answers</b>The case forbids silently assigning ownership, and the wireframe has a chip "Who should own Customer Profile schema?". The Ask agent answers with evidence-ranked candidates and the decision owner (RTE with Architect), never a single assignment.</div>
+<div class="callout warn"><b>DRI-X-006 data check</b>"Identified after the event started" needs timestamps for when each dependency was first recorded relative to the event. If the data package lacks them, mark X-006 as illustrative or derive it from S8's recorded mid-PI blockers.</div>
+<div class="callout warn"><b>Mock labelling</b>M2, M3 and M4 are generated, not provided. Label them as mocks in the demo so judges don't read X-007 or the Archer blocker as findings from real data.</div>
+<ul>
+  <li><b>Cheap additions that carry the production story:</b> snapshot ID, prompt version and model version in every audit line; a visible degraded-mode banner; retrieved text delimited as data; rejected edges stored so they are not proposed again.</li>
+</ul>
+
+<h2 id="phase">8. Phasing</h2>
+<div class="tbl"><table>
+<thead><tr><th>Phase</th><th>Scope</th><th>Mode</th></tr></thead>
+<tbody>
+<tr><td>Demo (by Nov 18)</td><td>All seven agents, four screens, evals, audit log, export. Core Banking &amp; Ledger overcommitment surfaced before the event.</td><td>Demo adapters only</td></tr>
+<tr><td>Production Phase 1 (90 days)</td><td>Jira, GitHub, Confluence, ServiceNow connectors; one pilot ART plus Core Banking &amp; Ledger; approval inbox; access control; model-risk review</td><td>Production connectors, read-only plus gated proposals</td></tr>
+<tr><td>Production Phase 2</td><td>Archer integration, all 6 ARTs, living-record monitor, Slack / Teams notifications</td><td>Production</td></tr>
+<tr><td>Production Phase 3</td><td>Opt-in Slack detection (X-007), Jira panel, scenario modeling, additional sources</td><td>Production</td></tr>
+</tbody></table></div>
+
+<h2 id="pitch">9. How to say it in the pitch</h2>
+<p>"What you are seeing runs on files because we don't have Haverstone's Jira. Underneath it is the same design Haverstone would deploy: a source adapter layer, a graph with evidence on every edge, deterministic risk rules, an LLM that only reads and explains, and a human gate before anything is committed. Moving to production means replacing the adapters on the bottom layer with read-only connectors. The agents, the rules, the screens and the audit trail do not change."</p>
+
+</main>
+</body>
+</html>
