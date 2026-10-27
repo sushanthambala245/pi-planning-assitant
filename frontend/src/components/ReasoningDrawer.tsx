@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { domainColor } from '../data/mock'
+import { domainColor } from '../data/domains'
 import type { Risk } from '../types'
 
 interface Props {
@@ -8,6 +8,8 @@ interface Props {
   onPrev: () => void
   onNext: () => void
 }
+
+const badgeClass = { High: 'high', Medium: 'medium', Low: 'low' } as const
 
 export function ReasoningDrawer({ risk, onClose, onPrev, onNext }: Props) {
   const [copied, setCopied] = useState(false)
@@ -18,8 +20,6 @@ export function ReasoningDrawer({ risk, onClose, onPrev, onNext }: Props) {
     setCopied(true)
     setTimeout(() => setCopied(false), 1500)
   }
-
-  const high = risk.severity === 'High'
 
   return (
     <aside className="drawer" aria-label="AI reasoning">
@@ -33,44 +33,52 @@ export function ReasoningDrawer({ risk, onClose, onPrev, onNext }: Props) {
       </div>
 
       <div className="drawer-body">
-        <span className={`drawer-risk-badge ${high ? 'high' : 'medium'}`}>
+        <span className={`drawer-risk-badge ${badgeClass[risk.severity]}`}>
           <i className="ti ti-alert-triangle" aria-hidden="true" /> {risk.severity} risk · {risk.title.split(' — ')[0]}
         </span>
 
-        <div className="drawer-section">
-          <div className="drawer-section-label">Why the AI flagged this</div>
-          <div className="reasoning-box">
-            {risk.reasoning.map((p, i) => <p key={i}>{p}</p>)}
+        {risk.reasoning.length > 0 && (
+          <div className="drawer-section">
+            <div className="drawer-section-label">Why the AI flagged this</div>
+            <div className="reasoning-box">
+              {risk.reasoning.map((p, i) => <p key={i}>{p}</p>)}
+            </div>
           </div>
-        </div>
+        )}
 
-        <div className="drawer-section">
-          <div className="drawer-section-label">Initiatives affected</div>
-          {risk.affected.map((a) => (
-            <div className="affected-item" key={a.text}>
-              <div className="affected-dot" style={{ background: domainColor[a.domain] }} />
-              {a.text}
-            </div>
-          ))}
-        </div>
+        {risk.affected.length > 0 && (
+          <div className="drawer-section">
+            <div className="drawer-section-label">Initiatives affected</div>
+            {risk.affected.map((a) => (
+              <div className="affected-item" key={a.text}>
+                <div className="affected-dot" style={{ background: domainColor(a.domain) }} />
+                {a.text}
+              </div>
+            ))}
+          </div>
+        )}
 
-        <div className="drawer-section">
-          <div className="drawer-section-label">Knowledge sources used</div>
-          {risk.sources.map((s) => (
-            <div className="sources-item" key={s.text}>
-              <i className={`ti ${s.icon}`} aria-hidden="true" />{s.text}
-            </div>
-          ))}
-        </div>
+        {risk.sources.length > 0 && (
+          <div className="drawer-section">
+            <div className="drawer-section-label">Knowledge sources used</div>
+            {risk.sources.map((s) => (
+              <div className="sources-item" key={s.text}>
+                <i className={`ti ${s.icon}`} aria-hidden="true" />{s.text}
+              </div>
+            ))}
+          </div>
+        )}
 
-        <div className="drawer-section">
-          <div className="drawer-section-label">Suggested actions</div>
-          {risk.suggestedPrompts.map((p) => (
-            <button className="prompt-chip" key={p}>
-              <i className="ti ti-send" aria-hidden="true" /> {p}
-            </button>
-          ))}
-        </div>
+        {risk.suggestedPrompts.length > 0 && (
+          <div className="drawer-section">
+            <div className="drawer-section-label">Suggested follow-ups</div>
+            {risk.suggestedPrompts.map((p) => (
+              <button className="prompt-chip" key={p} disabled title="Follow-up questions arrive with the backend">
+                <i className="ti ti-send" aria-hidden="true" /> {p}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="drawer-footer">

@@ -1,19 +1,19 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import type { Initiative } from '../types'
 
 interface Props {
   initiatives: Initiative[]
   onAdd: (title: string, description: string) => void
-  onRemove: (id: number) => void
+  onRemove: (id: string) => void
   onFilesDropped: (files: File[]) => void
+  onPickFiles: () => void
 }
 
-export function InitiativeList({ initiatives, onAdd, onRemove, onFilesDropped }: Props) {
+export function InitiativeList({ initiatives, onAdd, onRemove, onFilesDropped, onPickFiles }: Props) {
   const [adding, setAdding] = useState(false)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [dragging, setDragging] = useState(false)
-  const fileInput = useRef<HTMLInputElement>(null)
 
   const submit = () => {
     if (!title.trim()) return
@@ -30,7 +30,10 @@ export function InitiativeList({ initiatives, onAdd, onRemove, onFilesDropped }:
 
       <div
         className={`upload-box${dragging ? ' dragging' : ''}`}
-        onClick={() => fileInput.current?.click()}
+        role="button"
+        tabIndex={0}
+        onClick={onPickFiles}
+        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onPickFiles()}
         onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
         onDragLeave={() => setDragging(false)}
         onDrop={(e) => {
@@ -40,31 +43,31 @@ export function InitiativeList({ initiatives, onAdd, onRemove, onFilesDropped }:
         }}
       >
         <i className="ti ti-upload" aria-hidden="true" />
-        <div className="upload-label">Drop Jira export, ADO export, or CSV</div>
-        <div className="upload-sub">or paste initiative descriptions below</div>
-        <input
-          ref={fileInput}
-          type="file"
-          accept=".csv,.json,.xlsx"
-          hidden
-          onChange={(e) => onFilesDropped(Array.from(e.target.files ?? []))}
-        />
+        <div className="upload-label">Drop or click to upload CSV, JSON, Excel or ZIP</div>
+        <div className="upload-sub">Jira / ADO exports, initiatives, knowledge sources or an analysis result</div>
       </div>
 
       <div className="or-div">or add manually</div>
 
-      {initiatives.map((item, i) => (
-        <div className="init-row" key={item.id}>
-          <div className="init-num">{i + 1}</div>
-          <div className="init-text">
-            <div className="init-title">{item.title}</div>
-            <div className="init-sub">{item.description}</div>
+      {initiatives.length === 0 && !adding && (
+        <div className="list-empty">No initiatives yet. Upload a file above or add one manually.</div>
+      )}
+
+      <div className="scroll-list">
+        {initiatives.map((item, i) => (
+          <div className="init-row" key={item.id}>
+            <div className="init-num">{i + 1}</div>
+            <div className="init-text">
+              <div className="init-title">{item.title}</div>
+              {item.description && <div className="init-sub">{item.description}</div>}
+              {item.meta && <div className="init-meta">{item.id} · {item.meta}</div>}
+            </div>
+            <button className="icon-btn" aria-label={`Remove ${item.title}`} onClick={() => onRemove(item.id)}>
+              <i className="ti ti-x" aria-hidden="true" />
+            </button>
           </div>
-          <button className="icon-btn" aria-label={`Remove ${item.title}`} onClick={() => onRemove(item.id)}>
-            <i className="ti ti-x" aria-hidden="true" />
-          </button>
-        </div>
-      ))}
+        ))}
+      </div>
 
       {adding ? (
         <div className="add-form">

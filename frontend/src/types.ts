@@ -1,30 +1,34 @@
 export type Screen = 'intake' | 'pipeline' | 'results'
 
 export interface Initiative {
-  id: number
+  id: string
   title: string
   description: string
+  meta?: string
 }
 
 export type KbKind = 'conf' | 'arch' | 'team' | 'inv'
 
 export interface KnowledgeSource {
-  id: number
+  id: string
   kind: KbKind
   icon: string
   name: string
   meta: string
-  status: 'Ready'
 }
 
-export type AgentState = 'done' | 'active' | 'wait'
-
-export interface Agent {
+export interface AgentRun {
   id: string
   name: string
   icon: string
-  state: AgentState
+  summary: string
+  durationMs?: number
+  inputs: string[]
+  outputs: string[]
+  notes: string[]
 }
+
+export type AgentState = 'done' | 'active' | 'wait'
 
 export interface Finding {
   tag: 'sys' | 'dep'
@@ -32,16 +36,20 @@ export interface Finding {
   text: string
   note?: string
   highlight?: boolean
+  agentId?: string
 }
 
-export type Domain = 'Platform' | 'Compliance' | 'Product' | 'Data' | 'Other'
+export interface SourceUsed {
+  icon: string
+  text: string
+}
 
 export interface GraphNode {
   id: string
-  label: [string, string]
-  domain: Domain
-  x: number
-  y: number
+  label: string
+  domain: string
+  x?: number
+  y?: number
 }
 
 export interface GraphEdge {
@@ -50,7 +58,7 @@ export interface GraphEdge {
   inferred: boolean
 }
 
-export type Severity = 'High' | 'Medium'
+export type Severity = 'High' | 'Medium' | 'Low'
 
 export interface Risk {
   id: string
@@ -58,8 +66,31 @@ export interface Risk {
   description: string
   severity: Severity
   reasoning: string[]
-  affected: { domain: Domain; text: string }[]
-  sources: { icon: string; text: string }[]
+  affected: { domain: string; text: string }[]
+  sources: SourceUsed[]
   suggestedPrompts: string[]
   highlightNodes: string[]
+}
+
+/** Result of an analysis run. Produced by the backend (or loaded from a JSON file until it exists). */
+export interface Analysis {
+  agents: AgentRun[]
+  findings: Finding[]
+  sourcesUsed: SourceUsed[]
+  graph: { nodes: GraphNode[]; edges: GraphEdge[] }
+  risks: Risk[]
+  sequence: string[]
+  keyRisk?: string
+}
+
+export interface Run {
+  status: 'idle' | 'running' | 'done'
+  /** Index of the agent currently running; equals agents.length once done. */
+  current: number
+}
+
+export interface Notice {
+  id: number
+  kind: 'ok' | 'error'
+  text: string
 }
