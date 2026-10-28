@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Co-Pilot for PI — Enterprise Architecture</title>
+<style>
+:root{
+  color-scheme: light;
+  --bg:#f7f8fa; --surface:#ffffff; --surface2:#eef1f5; --ink:#14202e; --ink2:#46566b; --line:#d5dbe3;
+  --accent:#0b5cad; --accent-soft:#e1edf9;
+  --platform:#378ADD; --compliance:#1D9E75; --product:#d98a14; --data:#c2416f; --neutral:#6b7686;
+  --danger:#b3261e; --warn:#a15c00; --ok:#17794f;
+  --svg-fill:#ffffff; --svg-fill2:#eef1f5; --svg-stroke:#9aa6b6; --svg-text:#14202e; --svg-text2:#46566b;
+  --hitl:#fff4d6; --hitl-stroke:#c28a00;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    color-scheme: dark;
+    --bg:#0f151d; --surface:#161e29; --surface2:#1d2734; --ink:#e6ecf3; --ink2:#a7b4c4; --line:#2c3846;
+    --accent:#6db0f2; --accent-soft:#16283c;
+    --danger:#f2877f; --warn:#f0b35a; --ok:#58c79a;
+    --svg-fill:#161e29; --svg-fill2:#1d2734; --svg-stroke:#5b6a7d; --svg-text:#e6ecf3; --svg-text2:#a7b4c4;
+    --hitl:#3a3014; --hitl-stroke:#d9a520;
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+.wrap{display:grid;grid-template-columns:230px minmax(0,1fr);max-width:1260px;margin:0 auto;gap:0 40px;padding:0 24px}
+nav{position:sticky;top:0;align-self:start;height:100vh;overflow:auto;padding:32px 0;font-size:14px}
+nav .t{font-weight:700;margin-bottom:14px;font-size:15px}
+nav a{display:block;color:var(--ink2);text-decoration:none;padding:5px 10px;border-left:2px solid var(--line)}
+nav a:hover,nav a:focus-visible{color:var(--accent);border-left-color:var(--accent);outline:none}
+main{padding:40px 0 80px;min-width:0}
+h1{font-family:Georgia,"Times New Roman",serif;font-size:2.4rem;line-height:1.15;margin:0 0 12px;letter-spacing:-.01em}
+h2{font-family:Georgia,"Times New Roman",serif;font-size:1.6rem;margin:56px 0 12px;padding-top:20px;border-top:1px solid var(--line);letter-spacing:-.005em}
+h3{font-size:1.05rem;margin:28px 0 6px}
+p{margin:0 0 12px;max-width:74ch}
+.lede{font-size:1.1rem;color:var(--ink2);max-width:68ch}
+.meta{color:var(--ink2);font-size:14px;margin-bottom:28px}
+ul,ol{margin:0 0 14px;padding-left:22px;max-width:76ch}
+li{margin:3px 0}
+table{border-collapse:collapse;width:100%;font-size:14px;margin:10px 0 20px;background:var(--surface)}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--surface2);font-weight:600}
+td code,p code,li code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.88em;background:var(--surface2);padding:1px 5px;border-radius:3px}
+.tbl{overflow-x:auto}
+.callout{border-left:4px solid var(--accent);background:var(--accent-soft);padding:12px 16px;margin:16px 0;max-width:80ch;border-radius:0 4px 4px 0}
+.callout.warn{border-left-color:var(--product);background:var(--hitl)}
+.callout b:first-child{display:block;margin-bottom:2px}
+figure{margin:20px 0 28px;padding:0}
+figure .fig{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:10px;overflow-x:auto}
+figcaption{font-size:13px;color:var(--ink2);margin-top:8px}
+svg{display:block;max-width:100%;height:auto}
+svg text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;fill:var(--svg-text)}
+svg .sub{fill:var(--svg-text2)}
+svg .layer{fill:var(--svg-fill2);stroke:var(--svg-stroke);stroke-width:1;stroke-dasharray:5 4}
+svg .box{fill:var(--svg-fill);stroke:var(--svg-stroke);stroke-width:1.2}
+svg .hitl{fill:var(--hitl);stroke:var(--hitl-stroke);stroke-width:1.6}
+svg .arrow{stroke:var(--svg-stroke);stroke-width:1.4;fill:none}
+svg .arrow-w{stroke:var(--hitl-stroke);stroke-width:1.6;fill:none;stroke-dasharray:5 3}
+svg .lbl{font-size:12px}
+svg .ttl{font-size:13px;font-weight:700}
+svg .small{font-size:11px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px 16px}
+.card h3{margin-top:0}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:10px;border:1px solid var(--line);background:var(--surface2);color:var(--ink2);margin-right:4px}
+.tag.det{border-color:var(--compliance);color:var(--ok)}
+.tag.llm{border-color:var(--platform);color:var(--accent)}
+.tag.hitl{border-color:var(--hitl-stroke);color:var(--warn)}
+.phase{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:14px 0}
+.phase .card{border-top:4px solid var(--accent)}
+.phase .card:nth-child(2){border-top-color:var(--compliance)}
+.phase .card:nth-child(3){border-top-color:var(--product)}
+@media (max-width:900px){
+  .wrap{grid-template-columns:1fr;padding:0 16px}
+  nav{position:static;height:auto;padding:16px 0 0}
+  .grid2,.phase{grid-template-columns:1fr}
+  h1{font-size:1.9rem}
+}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav aria-label="Sections">
+  <div class="t">Contents</div>
+  <a href="#summary">Summary</a>
+  <a href="#drivers">Drivers and principles</a>
+  <a href="#logical">Logical architecture</a>
+  <a href="#agents">Agent design</a>
+  <a href="#data">Data and knowledge</a>
+  <a href="#flow">Runtime flow</a>
+  <a href="#integration">Integrations</a>
+  <a href="#hitl">Human control points</a>
+  <a href="#security">Security and governance</a>
+  <a href="#failure">Failure modes</a>
+  <a href="#nfr">Scale and operations</a>
+  <a href="#platform">Platform choices</a>
+  <a href="#roadmap">Phasing</a>
+  <a href="#ainative">Why AI-native</a>
+  <a href="#wireframe">Wireframe alignment</a>
+  <a href="#adr">Decisions and open items</a>
+</nav>
+<main>
+
+<h1>Co-Pilot for PI: enterprise architecture</h1>
+<p class="lede">A governed, read-first agentic layer that sits beside Jira, GitHub and Confluence at Haverstone Financial Group, finds the dependencies nobody wrote down, shows its reasoning, and hands every consequential decision back to a named human.</p>
+<p class="meta">Prepared for the Dallas Got AI Talent challenge · Haverstone case study · Inputs reviewed: case brief, PI planning wireframes (4 screens), Nexlara sample brief (used as a format reference for the architecture deliverable)</p>
+
+<h2 id="summary" style="border-top:none;margin-top:24px">1. Summary</h2>
+<p>Haverstone plans 38 teams across 6 Agile Release Trains every 10 weeks. About a third of dependencies surface only at the planning event, and roughly 19% only mid-PI. The most damaging ones live in code (shared libraries, internal APIs) or in aggregate demand on Core Banking &amp; Ledger, which no tool sums today.</p>
+<p>The architecture has five ideas:</p>
+<ol>
+  <li><b>Evidence graph, not a score.</b> Every dependency is an edge in a typed graph with provenance (which Jira epic, GitHub manifest, Confluence page or ServiceNow record produced it) and a confidence level. Nothing appears in the UI without a traceable source.</li>
+  <li><b>Deterministic where regulated, probabilistic where ambiguous.</b> LLMs read prose and propose candidate edges. Rules and graph algorithms (cycle detection, capacity sums, ownership checks) decide the Dependency Risk Index patterns. The model never computes a capacity number or declares a cycle.</li>
+  <li><b>Read-only by default, propose-only for writes.</b> The system reads Jira, GitHub, Confluence, ServiceNow and Archer. It can only draft Jira changes into an approval queue. It never touches code, never assigns an owner, never commits a plan.</li>
+  <li><b>Inferred capture.</b> EMs and POs do no new tagging. GitHub manifests and the service ownership map generate most candidate edges; humans confirm or reject.</li>
+  <li><b>Living record.</b> After the event, a change monitor re-evaluates agreed dependencies when upstream epics, dates or manifests move, and routes the change to the owning EM before it becomes a mid-PI surprise.</li>
+</ol>
+<div class="callout"><b>Scope statement</b>Phase 1 (90 days) delivers extraction, graph, DRI engine, Core Banking &amp; Ledger capacity radar, transparent sequencing and the reasoning drawer, all read-only with an approval queue for Jira link proposals. Living-record monitoring and ART-wide rollout follow in Phases 2 and 3.</div>
+
+<h2 id="drivers">2. Drivers and design principles</h2>
+<p>Every constraint in the case brief maps to a concrete architectural decision.</p>
+<div class="tbl"><table>
+<thead><tr><th>Constraint or driver (case brief)</th><th>Architectural response</th></tr></thead>
+<tbody>
+<tr><td>PI Planning stays; favor flagging and recommending over auto-committed plans</td><td>Recommendations are artifacts with status <code>proposed</code>. No auto-commit path exists in the write-back service.</td></tr>
+<tr><td>Jira and GitHub remain systems of record; no code or repo changes</td><td>GitHub connector is a read-only GitHub App with <code>contents:read</code> and <code>metadata:read</code> only. Jira writes are limited to link and comment creation via a separate service principal, gated by approval.</td></tr>
+<tr><td>Transparent reasoning, not a black-box score</td><td>Every finding stores an evidence bundle (sources, graph path, rule ID, model rationale). The reasoning drawer renders it; export includes it.</td></tr>
+<tr><td>Regulated work needs a visible human sign-off</td><td>Items touching payments, lending, fraud controls or Archer-tracked controls are tagged <code>regulated</code> and require explicit named sign-off before any proposal is released to Jira.</td></tr>
+<tr><td>Dependencies count wherever they live</td><td>Three evidence channels merged in one graph: Jira text, GitHub manifests and ownership, and Confluence narrative. Edges are labeled by channel so GitHub-only dependencies are visible.</td></tr>
+<tr><td>Low-friction capture</td><td>Inference-first ingestion; the human task is confirm or reject, not tag.</td></tr>
+<tr><td>No silent ownership reassignment</td><td>Ownerless nodes raise DRI-X-002 and open a decision item addressed to a role. Ownership fields are never written by the system.</td></tr>
+<tr><td>Synthetic data only</td><td>Data classification gate on ingestion rejects anything outside the synthetic tenant; the architecture assumes no customer or transaction data ever enters the platform.</td></tr>
+</tbody></table></div>
+
+<h3>Principles</h3>
+<ul>
+  <li><b>Separate reasoning from authority.</b> Agents reason; people and systems of record decide.</li>
+  <li><b>Remember what is reusable, recompute what is initiative-specific.</b> Service ownership, consumer lists and manifest edges persist in the graph. Per-PI demand, sequencing and risk are recomputed each run from a versioned snapshot.</li>
+  <li><b>Every output is reproducible.</b> A run pins snapshot version, prompt versions, model version and rule-set version, so a finding can be re-derived for audit.</li>
+  <li><b>Fail visible, not silent.</b> A source that cannot be read downgrades coverage and says so on screen; it never produces an unmarked partial answer.</li>
+</ul>
+
+<h2 id="logical">3. Logical architecture</h2>
+<figure>
+<div class="fig">
+<svg viewBox="0 0 980 690" role="img" aria-label="Layered logical architecture: experience, orchestration and agents, knowledge and rules, ingestion, source systems, with a cross-cutting trust and governance bar">
+<defs><marker id="a1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#9aa6b6" stroke-width="1.6" stroke-linecap="round"/></marker></defs>
+
+<!-- Layer 1 -->
+<rect class="layer" x="10" y="10" width="760" height="100" rx="8"/>
+<text class="ttl" x="24" y="30">1 · Experience layer</text>
+<rect class="box" x="26" y="42" width="220" height="56" rx="5"/>
+<text class="lbl" x="38" y="62">Planning workbench (web)</text><text class="small sub" x="38" y="78">Intake · pipeline · graph · drawer</text>
+<rect class="box" x="262" y="42" width="220" height="56" rx="5"/>
+<text class="lbl" x="274" y="62">Approval inbox</text><text class="small sub" x="274" y="78">Review proposals before Jira write</text>
+<rect class="box" x="498" y="42" width="258" height="56" rx="5"/>
+<text class="lbl" x="510" y="62">Notifications (Slack / Teams / email)</text><text class="small sub" x="510" y="78">Drift alerts routed to owning EM</text>
+
+<!-- Layer 2 -->
+<rect class="layer" x="10" y="124" width="760" height="188" rx="8"/>
+<text class="ttl" x="24" y="144">2 · Orchestration and agents</text>
+<rect class="box" x="26" y="156" width="728" height="40" rx="5"/>
+<text class="lbl" x="38" y="173">Orchestrator: durable workflow engine · run state · retries · timeouts · approval gates</text>
+<text class="small sub" x="38" y="188">API gateway + AuthN/Z in front · each run pinned to snapshot, prompt, model and rule versions</text>
+<rect class="box" x="26" y="206" width="112" height="46" rx="5"/><text class="lbl" x="34" y="224">Initiative</text><text class="lbl" x="34" y="238">analyser</text>
+<rect class="box" x="146" y="206" width="112" height="46" rx="5"/><text class="lbl" x="154" y="224">Dependency</text><text class="lbl" x="154" y="238">discovery</text>
+<rect class="box" x="266" y="206" width="112" height="46" rx="5"/><text class="lbl" x="274" y="224">Capacity</text><text class="lbl" x="274" y="238">radar</text>
+<rect class="box" x="386" y="206" width="112" height="46" rx="5"/><text class="lbl" x="394" y="224">Sequencing</text><text class="lbl" x="394" y="238">agent</text>
+<rect class="box" x="506" y="206" width="112" height="46" rx="5"/><text class="lbl" x="514" y="224">Risk (DRI)</text><text class="lbl" x="514" y="238">agent</text>
+<rect class="box" x="626" y="206" width="128" height="46" rx="5"/><text class="lbl" x="634" y="224">Explain and</text><text class="lbl" x="634" y="238">visualise agent</text>
+<rect class="box" x="26" y="260" width="364" height="42" rx="5"/><text class="lbl" x="38" y="278">Living-record monitor</text><text class="small sub" x="38" y="293">Phase 2 · re-evaluates agreed edges on upstream change</text>
+<rect class="hitl" x="402" y="260" width="352" height="42" rx="5"/><text class="lbl" x="414" y="278">Write-back service (propose-only)</text><text class="small sub" x="414" y="293">Releases to Jira only after named human approval</text>
+
+<!-- Layer 3 -->
+<rect class="layer" x="10" y="326" width="760" height="150" rx="8"/>
+<text class="ttl" x="24" y="346">3 · Knowledge, rules and model access</text>
+<rect class="box" x="26" y="358" width="170" height="106" rx="5"/>
+<text class="lbl" x="36" y="378">Dependency graph</text><text class="small sub" x="36" y="394">Typed nodes and edges</text><text class="small sub" x="36" y="408">Provenance + confidence</text><text class="small sub" x="36" y="422">Versioned snapshots</text><text class="small sub" x="36" y="436">Graph DB / relational</text>
+<rect class="box" x="206" y="358" width="150" height="106" rx="5"/>
+<text class="lbl" x="216" y="378">Evidence store</text><text class="small sub" x="216" y="394">Source excerpts</text><text class="small sub" x="216" y="408">Rationale bundles</text><text class="small sub" x="216" y="422">Decision records</text><text class="small sub" x="216" y="436">Immutable audit log</text>
+<rect class="box" x="366" y="358" width="140" height="106" rx="5"/>
+<text class="lbl" x="376" y="378">Rules engine</text><text class="small sub" x="376" y="394">DRI-X-001 … 007</text><text class="small sub" x="376" y="408">Cycle detection</text><text class="small sub" x="376" y="422">Capacity sums</text><text class="small sub" x="376" y="436">Versioned rule set</text>
+<rect class="box" x="516" y="358" width="110" height="106" rx="5"/>
+<text class="lbl" x="526" y="378">Retrieval</text><text class="small sub" x="526" y="394">Vector index</text><text class="small sub" x="526" y="408">over Jira text,</text><text class="small sub" x="526" y="422">Confluence,</text><text class="small sub" x="526" y="436">dependency docs</text>
+<rect class="box" x="636" y="358" width="118" height="106" rx="5"/>
+<text class="lbl" x="646" y="378">LLM gateway</text><text class="small sub" x="646" y="394">Prompt registry</text><text class="small sub" x="646" y="408">PII/secret filter</text><text class="small sub" x="646" y="422">Schema validation</text><text class="small sub" x="646" y="436">Cost + eval hooks</text>
+
+<!-- Layer 4 -->
+<rect class="layer" x="10" y="490" width="760" height="86" rx="8"/>
+<text class="ttl" x="24" y="510">4 · Ingestion and integration</text>
+<rect class="box" x="26" y="520" width="728" height="46" rx="5"/>
+<text class="lbl" x="38" y="540">Read-only connectors → normaliser → entity resolver (team, service, repo, epic) → snapshot writer</text>
+<text class="small sub" x="38" y="556">Scheduled pull + webhook change stream · rate-limit aware · per-source health reported to orchestrator</text>
+
+<!-- Layer 5 -->
+<rect class="layer" x="10" y="590" width="760" height="90" rx="8"/>
+<text class="ttl" x="24" y="610">5 · Systems of record (unchanged)</text>
+<rect class="box" x="26" y="620" width="92" height="50" rx="5"/><text class="lbl" x="38" y="650">Jira</text>
+<rect class="box" x="128" y="620" width="92" height="50" rx="5"/><text class="lbl" x="140" y="650">GitHub</text>
+<rect class="box" x="230" y="620" width="106" height="50" rx="5"/><text class="lbl" x="242" y="650">Confluence</text>
+<rect class="box" x="346" y="620" width="118" height="50" rx="5"/><text class="lbl" x="358" y="650">ServiceNow</text>
+<rect class="box" x="474" y="620" width="118" height="50" rx="5"/><text class="lbl" x="486" y="650">Archer GRC</text>
+<rect class="box" x="602" y="620" width="152" height="50" rx="5"/><text class="lbl" x="614" y="650">Slack · Miro · Sheet</text>
+
+<!-- Cross-cutting -->
+<rect class="layer" x="790" y="10" width="180" height="670" rx="8"/>
+<text class="ttl" x="804" y="30">Cross-cutting</text>
+<rect class="box" x="802" y="46" width="156" height="78" rx="5"/><text class="lbl" x="812" y="66">Identity and access</text><text class="small sub" x="812" y="82">SSO · RBAC by ART</text><text class="small sub" x="812" y="96">Service principals</text><text class="small sub" x="812" y="110">Secrets vault</text>
+<rect class="box" x="802" y="134" width="156" height="78" rx="5"/><text class="lbl" x="812" y="154">Audit and lineage</text><text class="small sub" x="812" y="170">Append-only log</text><text class="small sub" x="812" y="184">Actor · time · rationale</text><text class="small sub" x="812" y="198">Run reproducibility</text>
+<rect class="box" x="802" y="222" width="156" height="78" rx="5"/><text class="lbl" x="812" y="242">AI governance</text><text class="small sub" x="812" y="258">Model inventory</text><text class="small sub" x="812" y="272">Eval gates · drift</text><text class="small sub" x="812" y="286">Prompt change control</text>
+<rect class="box" x="802" y="310" width="156" height="78" rx="5"/><text class="lbl" x="812" y="330">Guardrails</text><text class="small sub" x="812" y="346">Write allow-list</text><text class="small sub" x="812" y="360">Injection defence</text><text class="small sub" x="812" y="374">Regulated-item tags</text>
+<rect class="box" x="802" y="398" width="156" height="78" rx="5"/><text class="lbl" x="812" y="418">Observability</text><text class="small sub" x="812" y="434">Traces per run</text><text class="small sub" x="812" y="448">Source freshness</text><text class="small sub" x="812" y="462">Cost and latency</text>
+<rect class="box" x="802" y="486" width="156" height="78" rx="5"/><text class="lbl" x="812" y="506">Resilience</text><text class="small sub" x="812" y="522">Retries · dead-letter</text><text class="small sub" x="812" y="536">Snapshot fallback</text><text class="small sub" x="812" y="550">Degraded-mode banner</text>
+<text class="small sub" x="804" y="590">Applies to every layer</text>
+
+<!-- arrows between layers -->
+<path class="arrow" d="M390 110 V124" marker-end="url(#a1)"/>
+<path class="arrow" d="M390 312 V326" marker-end="url(#a1)"/>
+<path class="arrow" d="M390 476 V490" marker-end="url(#a1)"/>
+<path class="arrow" d="M390 576 V590" marker-start="url(#a1)"/>
+</svg>
+</div>
+<figcaption>Figure 1. Five layers plus a cross-cutting trust plane. The amber box is the only component that can change a system of record, and only after human approval.</figcaption>
+</figure>
+
+<h2 id="agents">4. Agent design</h2>
+<p>The wireframe shows five agents (Initiative analyser, Dependency discovery, Sequencing, Risk, Visualisation). The architecture keeps those names and adds a <b>Capacity radar</b>, because the brief makes Core Banking &amp; Ledger overcommitment (~145%) a first-class failure and a pure LLM cannot be trusted to sum it. Each agent has a narrow contract: typed input, typed output, and a declared split between model and code.</p>
+<div class="tbl"><table>
+<thead><tr><th>Agent</th><th>Job</th><th>Inputs</th><th>Output</th><th>Method</th></tr></thead>
+<tbody>
+<tr><td><b>Initiative analyser</b></td><td>Turn free-text initiatives and epics into structured work items: capabilities touched, services named, target PI, regulatory flags.</td><td>initiatives, epics, Confluence pages</td><td><code>WorkItem</code> records with entity links and extraction confidence</td><td><span class="tag llm">LLM</span><span class="tag det">schema-validated</span></td></tr>
+<tr><td><b>Dependency discovery</b></td><td>Produce candidate edges from three channels: explicit text ("blocked on…"), code-level (GitHub manifests, cross-repo imports), and implicit (two items touching the same ledger capability, dataset or schema).</td><td>WorkItems, repo manifests, service ownership map, existing Jira links</td><td><code>Edge</code> records: type, direction, channel, evidence refs, confidence</td><td>Code channel is <span class="tag det">deterministic</span>; text channel is <span class="tag llm">LLM</span>; implicit channel is rule-based joins plus LLM tie-break</td></tr>
+<tr><td><b>Capacity radar</b></td><td>Aggregate demand per shared-services team against stated capacity before the event.</td><td>Edges, WorkItem sizing, team_capacity</td><td>Demand vs capacity per team per PI, contributors ranked</td><td><span class="tag det">deterministic</span> (LLM only writes the narrative)</td></tr>
+<tr><td><b>Sequencing agent</b></td><td>Recommend an order for initiatives that respects dependency direction, capacity and regulatory gates, and show why.</td><td>Validated graph, capacity results, Archer control status</td><td>Ordered plan with a justification chain per step and the alternatives considered</td><td>Topological ordering + constraint solver (<span class="tag det">deterministic</span>); <span class="tag llm">LLM</span> renders rationale only</td></tr>
+<tr><td><b>Risk agent (DRI)</b></td><td>Evaluate DRI-X-001 to 007 and rank by severity and blast radius.</td><td>Graph, ownership map, capacity results, deprecation flags, interface contract status</td><td><code>RiskFinding</code> with pattern code, severity, evidence path</td><td><span class="tag det">rules engine</span>; LLM may surface candidate patterns for human review but cannot create a Blocker</td></tr>
+<tr><td><b>Explain and visualise</b></td><td>Build the graph view, the reasoning drawer content, executive summary, and export.</td><td>All of the above</td><td>Graph payload, drawer bundles, summary text</td><td>Templates + <span class="tag llm">LLM</span> for prose; every sentence must cite an evidence ID or is dropped</td></tr>
+<tr><td><b>Living-record monitor</b> (Phase 2)</td><td>Watch agreed edges; when an upstream epic, date or manifest changes, re-evaluate and notify.</td><td>Webhook/change stream, agreed-plan snapshot</td><td>Drift events routed to owning EM / RTE</td><td><span class="tag det">deterministic</span> diffing + templated alerts</td></tr>
+</tbody></table></div>
+
+<h3>Agent boundaries (guardrails by construction)</h3>
+<ul>
+  <li>Agents receive tools through the orchestrator's allow-list. Only the write-back service holds a Jira write credential, and agents cannot call it directly.</li>
+  <li>An agent's structured output is validated against a JSON schema; invalid output is retried once with the validation error, then escalated as a failed step. Free text is never passed to downstream agents unvalidated.</li>
+  <li>Retrieved text (Jira comments, Confluence, repo READMEs) is treated as untrusted data. It is delimited, never concatenated into system instructions, and instruction-like content is logged as a possible injection attempt.</li>
+</ul>
+
+<h2 id="data">5. Data and knowledge architecture</h2>
+<h3>Core model</h3>
+<div class="grid2">
+<div class="card"><h3>Node types</h3>
+<ul>
+<li><code>Initiative</code>, <code>Epic</code> (from Jira / initiatives.csv)</li>
+<li><code>Team</code>, <code>ART</code> (team_directory)</li>
+<li><code>Service</code>, <code>API</code>, <code>Dataset</code>, <code>LedgerCapability</code> (service_ownership_map)</li>
+<li><code>Repository</code>, <code>Library</code> (github_repos)</li>
+<li><code>Control</code> (Archer sign-off requirement)</li>
+<li><code>Decision</code> (human outcome on a finding)</li>
+</ul></div>
+<div class="card"><h3>Edge types</h3>
+<ul>
+<li><code>BLOCKED_BY</code>, <code>REQUIRES</code> (explicit text)</li>
+<li><code>IMPORTS</code>, <code>CALLS</code>, <code>SHARES_LIB</code> (code)</li>
+<li><code>WRITES_TO</code>, <code>READS_FROM</code> (implicit shared target)</li>
+<li><code>OWNED_BY</code>, <code>CONSUMED_BY</code></li>
+<li><code>GATED_BY</code> (control sign-off)</li>
+</ul>
+<p style="margin:6px 0 0">Every edge carries: <code>channel</code> (jira-text · github · confluence · inferred), <code>confidence</code>, <code>evidence_ids[]</code>, <code>status</code> (proposed · confirmed · rejected), <code>first_seen</code>, <code>last_validated</code>.</p></div>
+</div>
+
+<h3>Stores and what each remembers</h3>
+<div class="tbl"><table>
+<thead><tr><th>Store</th><th>Holds</th><th>Lifetime</th><th>Rationale</th></tr></thead>
+<tbody>
+<tr><td>Dependency graph</td><td>Nodes and edges, confirmed or proposed</td><td>Persistent, snapshot-versioned per PI</td><td>Reusable knowledge: service ownership, known consumers, manifest edges. Recomputing these each run wastes tokens and loses human confirmations.</td></tr>
+<tr><td>Evidence store</td><td>Excerpts, rationale bundles, rule traces, decision records</td><td>Retained per audit policy (see §9)</td><td>Everything in the reasoning drawer resolves to a stored record.</td></tr>
+<tr><td>Vector index</td><td>Embeddings of epics, Confluence pages, dependency docs</td><td>Rebuilt on source change</td><td>Retrieval for the text and implicit channels only; never the source of truth.</td></tr>
+<tr><td>Run ledger</td><td>Run ID, snapshot ID, model, prompt and rule versions, step status</td><td>Persistent</td><td>Reproducibility: any finding can be re-derived.</td></tr>
+<tr><td>Per-run working state</td><td>Capacity totals, sequence, risk ranking</td><td>Recomputed each run</td><td>Initiative-specific and PI-specific; stale the moment inputs change.</td></tr>
+</tbody></table></div>
+
+<h3>Entity resolution</h3>
+<p>The hardest data problem is not extraction but naming: "ledger posting API", "Posting Service" and "ledger-posting-svc" are one thing. A resolver maps mentions to canonical nodes using the ServiceNow-derived ownership map as the authority, then fuzzy and embedding matches with a threshold. Matches below threshold become <code>unresolved mention</code> items for human confirmation, and confirmations are stored as aliases so the same question is never asked twice.</p>
+
+<h2 id="flow">6. Runtime flow</h2>
+<figure>
+<div class="fig">
+<svg viewBox="0 0 980 430" role="img" aria-label="End-to-end runtime flow from intake through ingestion, extraction, validation, capacity, sequencing, risk, explanation, human review gate, write-back and living-record loop">
+<defs>
+<marker id="a2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#9aa6b6" stroke-width="1.6" stroke-linecap="round"/></marker>
+<marker id="a3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#c28a00" stroke-width="1.6" stroke-linecap="round"/></marker>
+</defs>
+<!-- Row 1 -->
+<rect class="box" x="14" y="30" width="150" height="76" rx="6"/><text class="ttl" x="26" y="52">1 Intake</text><text class="small sub" x="26" y="70">RTE selects ART(s), PI,</text><text class="small sub" x="26" y="84">initiatives, sources</text>
+<rect class="box" x="184" y="30" width="150" height="76" rx="6"/><text class="ttl" x="196" y="52">2 Snapshot</text><text class="small sub" x="196" y="70">Connectors pull, resolve</text><text class="small sub" x="196" y="84">entities, freeze version</text>
+<rect class="box" x="354" y="30" width="150" height="76" rx="6"/><text class="ttl" x="366" y="52">3 Extract</text><text class="small sub" x="366" y="70">Initiative analyser +</text><text class="small sub" x="366" y="84">dependency discovery</text>
+<rect class="box" x="524" y="30" width="150" height="76" rx="6"/><text class="ttl" x="536" y="52">4 Validate</text><text class="small sub" x="536" y="70">Schema + evidence check;</text><text class="small sub" x="536" y="84">drop unsupported edges</text>
+<rect class="box" x="694" y="30" width="130" height="76" rx="6"/><text class="ttl" x="706" y="52">5 Capacity</text><text class="small sub" x="706" y="70">Demand vs capacity</text><text class="small sub" x="706" y="84">per shared team</text>
+<rect class="box" x="844" y="30" width="122" height="76" rx="6"/><text class="ttl" x="856" y="52">6 Risk</text><text class="small sub" x="856" y="70">DRI-X rules over</text><text class="small sub" x="856" y="84">the graph</text>
+<path class="arrow" d="M164 68 H184" marker-end="url(#a2)"/><path class="arrow" d="M334 68 H354" marker-end="url(#a2)"/><path class="arrow" d="M504 68 H524" marker-end="url(#a2)"/><path class="arrow" d="M674 68 H694" marker-end="url(#a2)"/><path class="arrow" d="M824 68 H844" marker-end="url(#a2)"/>
+<!-- turn down -->
+<path class="arrow" d="M905 106 V150 H690" marker-end="url(#a2)"/>
+<!-- Row 2 (right to left) -->
+<rect class="box" x="540" y="120" width="150" height="76" rx="6"/><text class="ttl" x="552" y="142">7 Sequence</text><text class="small sub" x="552" y="160">Topological order +</text><text class="small sub" x="552" y="174">capacity + gates</text>
+<rect class="box" x="370" y="120" width="150" height="76" rx="6"/><text class="ttl" x="382" y="142">8 Explain</text><text class="small sub" x="382" y="160">Drawer bundles, graph,</text><text class="small sub" x="382" y="174">summary with citations</text>
+<rect class="hitl" x="190" y="120" width="160" height="76" rx="6"/><text class="ttl" x="202" y="142">9 Human review</text><text class="small sub" x="202" y="160">RTE / EM / Architect</text><text class="small sub" x="202" y="174">confirm · reject · defer</text>
+<path class="arrow" d="M540 158 H520" marker-end="url(#a2)"/><path class="arrow" d="M370 158 H350" marker-end="url(#a2)"/>
+<!-- Row 3 -->
+<rect class="hitl" x="14" y="250" width="200" height="86" rx="6"/><text class="ttl" x="26" y="272">10 Approve write-back</text><text class="small sub" x="26" y="290">Named approver per proposal;</text><text class="small sub" x="26" y="304">regulated items need a second</text><text class="small sub" x="26" y="318">role (Architect or control owner)</text>
+<rect class="box" x="244" y="250" width="200" height="86" rx="6"/><text class="ttl" x="256" y="272">11 Write to Jira</text><text class="small sub" x="256" y="290">Link / comment created via</text><text class="small sub" x="256" y="304">least-privilege principal;</text><text class="small sub" x="256" y="318">result read back and logged</text>
+<rect class="box" x="474" y="250" width="220" height="86" rx="6"/><text class="ttl" x="486" y="272">12 Living record (Phase 2)</text><text class="small sub" x="486" y="290">Change stream re-evaluates</text><text class="small sub" x="486" y="304">agreed edges; routes drift to</text><text class="small sub" x="486" y="318">the owning EM within minutes</text>
+<path class="arrow-w" d="M270 196 V223 H114 V250" marker-end="url(#a3)"/>
+<path class="arrow" d="M214 293 H244" marker-end="url(#a2)"/>
+<path class="arrow" d="M444 293 H474" marker-end="url(#a2)"/>
+<path class="arrow" d="M584 336 V382 H70 V336" marker-end="url(#a2)" stroke-dasharray="3 3"/>
+<text class="small sub" x="230" y="400">Drift changes an edge's status and re-opens it at step 9 for a human decision</text>
+<!-- legend -->
+<rect class="hitl" x="730" y="262" width="22" height="14" rx="3"/><text class="small" x="760" y="274">Human control point</text>
+<rect class="box" x="730" y="286" width="22" height="14" rx="3"/><text class="small" x="760" y="298">Automated step</text>
+<path class="arrow-w" d="M730 318 H752"/><text class="small" x="760" y="322">Approval-gated path</text>
+</svg>
+</div>
+<figcaption>Figure 2. Runtime flow. Steps 1 to 8 are automated and idempotent; steps 9 and 10 are human; nothing reaches Jira without passing step 10.</figcaption>
+</figure>
+
+<h3>Notes on the flow</h3>
+<ul>
+  <li><b>Step 2 (snapshot).</b> Freezing a versioned snapshot means a re-run on the same inputs reproduces the same graph, and a diff between two snapshots drives the Phase 2 monitor.</li>
+  <li><b>Step 4 (validate).</b> An LLM-proposed edge with no resolvable evidence reference is discarded, not shown. This is the main defence against hallucinated dependencies.</li>
+  <li><b>Steps 5 to 7 (deterministic core).</b> Capacity totals, cycle detection and ordering are computed by code and are unit-testable against the historical PI outcomes.</li>
+  <li><b>Step 9.</b> The UI streams partial results while later agents run (as in wireframe screen 2), but nothing becomes actionable until the run completes.</li>
+</ul>
+
+<h2 id="integration">7. Integration architecture</h2>
+<div class="tbl"><table>
+<thead><tr><th>System</th><th>What we read</th><th>Access mode</th><th>Write-back</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td>Jira</td><td>Epics, features, links, status, comments</td><td>REST + webhooks, read-scoped service principal</td><td>Proposed links and notes only, via approval inbox, separate write principal</td><td>All 6 ARTs on one instance; JQL scoped by ART and PI. Jira remains system of record.</td></tr>
+<tr><td>GitHub</td><td>Repo metadata, dependency manifests, import graph, CODEOWNERS, cross-repo PR references</td><td>GitHub App, <code>contents:read</code> + <code>metadata:read</code></td><td>None</td><td>No code is copied into the platform: only extracted manifest facts and file paths. Repo structure is never modified.</td></tr>
+<tr><td>Confluence</td><td>Initiative narratives, PI objectives, retro notes</td><td>REST, space-scoped read</td><td>None</td><td>Respect page restrictions; restricted pages are skipped and logged.</td></tr>
+<tr><td>ServiceNow</td><td>Service and ownership records (CMDB)</td><td>REST, read-only role</td><td>None</td><td>Authority for ownership. A conflict with GitHub CODEOWNERS is raised as a finding, never auto-resolved.</td></tr>
+<tr><td>Archer GRC</td><td>Control requirements and sign-off status per initiative</td><td>Read-only API or scheduled export</td><td>None</td><td>Drives <code>GATED_BY</code> edges and the regulated tag. Sign-off status is displayed, never altered.</td></tr>
+<tr><td>Slack / Teams</td><td>Optional opt-in channel signals (Phase 3)</td><td>Event subscription on named channels</td><td>Notifications only</td><td>DRI-X-007 (informal-only dependencies) is detected by comparing channel mentions to graph edges. Opt-in per channel; no DM access.</td></tr>
+<tr><td>Miro / Spaghetti Sheet</td><td>Legacy dependency artifacts</td><td>One-time import</td><td>None</td><td>Used to seed and measure coverage during adoption, then retired as the living record takes over.</td></tr>
+</tbody></table></div>
+<p><b>Integration pattern.</b> Connectors share one interface (<code>pull(scope) → normalised records</code>, <code>health() → status</code>, <code>changes(since) → events</code>). Adding a source later (for example Azure DevOps, which the wireframe's intake mentions) is a new connector, not a redesign.</p>
+
+<h2 id="hitl">8. Human-in-the-loop control points</h2>
+<div class="tbl"><table>
+<thead><tr><th>Control point</th><th>Who</th><th>Trigger</th><th>What the human sees</th><th>What happens on each outcome</th></tr></thead>
+<tbody>
+<tr><td>Edge confirmation</td><td>EM or PO of the dependent team</td><td>Proposed edge below confidence threshold, or any GitHub-only edge on a Tier-1 service</td><td>Edge, evidence excerpts, channel, confidence</td><td>Confirm → status confirmed. Reject → stored as negative example and suppressed on future runs. Defer → stays flagged in pre-PI report.</td></tr>
+<tr><td>Ownerless dependency decision</td><td>RTE with Architect</td><td>DRI-X-002</td><td>Candidate owners ranked by evidence (CODEOWNERS, commit history, ServiceNow)</td><td>The system never assigns. A human decision is recorded; ownership is changed in ServiceNow by the owning process.</td></tr>
+<tr><td>Sequence acceptance</td><td>RTE, Architect, Business Owner</td><td>Every run</td><td>Order, chain of reasons, alternatives, capacity impact</td><td>Accept / modify / reject. Modifications are stored with rationale and feed evaluation.</td></tr>
+<tr><td>Regulated sign-off</td><td>Control owner or Architect, plus RTE</td><td>Any item tagged payments, lending, fraud control, or Archer-tracked</td><td>Recommendation as decision support, with the gating control status</td><td>Required before any related proposal is released to Jira.</td></tr>
+<tr><td>Write-back approval</td><td>Named approver per proposal</td><td>Every Jira proposal</td><td>Exact change that will be made</td><td>Approve → write and verify. Reject → discarded and logged.</td></tr>
+<tr><td>Capacity re-scope</td><td>Business Owner with ART leads</td><td>Shared-services demand &gt; 100%</td><td>Contributors ranked by demand, options to defer</td><td>Decision recorded; the radar re-runs with the new scope.</td></tr>
+</tbody></table></div>
+
+<h2 id="security">9. Security, compliance and AI governance</h2>
+<p>Haverstone is a regulated bank, so even a decision-support tool is designed as if examiners will read its logs.</p>
+<div class="grid2">
+<div class="card"><h3>Identity and access</h3>
+<ul>
+<li>SSO with RBAC scoped by ART; cross-ART views require an explicit role.</li>
+<li>Separate service principals per connector; read and write principals are distinct.</li>
+<li>Secrets in a managed vault with rotation; none in code or prompts.</li>
+<li>Network: private endpoints, no public inbound to connectors or model gateway.</li>
+</ul></div>
+<div class="card"><h3>Data protection</h3>
+<ul>
+<li>Source-code content is not stored; only manifest facts, paths and ownership.</li>
+<li>Classification gate on ingestion; the challenge tenant accepts synthetic data only. A production tenant would block customer or transaction data.</li>
+<li>Encryption in transit and at rest; customer-managed keys in production.</li>
+<li>Model provider: private endpoint, no training on inputs, zero or short retention.</li>
+</ul></div>
+<div class="card"><h3>Audit and traceability</h3>
+<ul>
+<li>Append-only log of every run, proposal, approval, rejection and write (actor, timestamp, rationale, versions).</li>
+<li>Any finding reproducible from its run ledger entry.</li>
+<li>Retention aligned to Haverstone's records policy (assumed multi-year; to confirm).</li>
+</ul></div>
+<div class="card"><h3>Model risk and AI governance</h3>
+<ul>
+<li>Registered in the model inventory with a risk tier. Because outputs inform but do not decide, the proposed tier is lower than for a decisioning model; model-risk confirms.</li>
+<li>Offline evaluation against the last 6 PIs (historical_pi_outcomes) before each release; prompt and rule-set changes go through change control.</li>
+<li>Monitoring for precision of confirmed edges, rejection rate, drift in extraction quality, and cost.</li>
+</ul></div>
+</div>
+
+<h3>Agent-specific threats</h3>
+<div class="tbl"><table>
+<thead><tr><th>Threat</th><th>Control</th></tr></thead>
+<tbody>
+<tr><td>Prompt injection via epic text, Confluence or README content</td><td>Retrieved text is data-only, delimited and never in system context; output must be schema-valid and evidence-linked; agents hold no write tools; injection-like strings are flagged.</td></tr>
+<tr><td>Hallucinated dependency</td><td>Step 4 evidence check discards unsupported edges; UI shows confidence and source for each.</td></tr>
+<tr><td>Over-trust ("the AI said so")</td><td>Findings are labeled as recommendations; sequence acceptance and regulated sign-off are explicit clicks by named roles.</td></tr>
+<tr><td>Excessive agency</td><td>Write allow-list in the guardrail layer is limited to Jira link and comment creation after approval. Ownership, status, code and plan-commit actions do not exist as tools.</td></tr>
+<tr><td>Data leakage across ARTs</td><td>RBAC filters at the query layer; retrieval is scoped to the caller's entitlements before it reaches a model.</td></tr>
+<tr><td>Bias toward well-known teams or loud escalators</td><td>Capacity and ordering are computed from data, not from who raised the issue; override reasons are logged.</td></tr>
+</tbody></table></div>
+
+<h2 id="failure">10. Failure modes and handling</h2>
+<div class="tbl"><table>
+<thead><tr><th>Failure</th><th>Detection</th><th>Behaviour</th><th>User signal</th></tr></thead>
+<tbody>
+<tr><td>Source unavailable (e.g. GitHub rate limit or outage)</td><td>Connector health check, HTTP errors</td><td>Retry with backoff; fall back to last good snapshot; mark that channel stale</td><td>Banner: "GitHub data is 6h old. Code-level dependencies may be incomplete."</td></tr>
+<tr><td>LLM unavailable or timing out</td><td>Gateway timeout and error rate</td><td>Deterministic channels (GitHub, ownership, capacity, DRI rules) still run; text extraction queued for retry</td><td>Run completes as "partial: explicit-text dependencies pending"</td></tr>
+<tr><td>Invalid or low-quality model output</td><td>Schema validation, evidence check, confidence threshold</td><td>One retry with the validation error; then drop and log; never pass through</td><td>Count of discarded items shown in run details</td></tr>
+<tr><td>Entity resolution ambiguity</td><td>Match score below threshold</td><td>Create unresolved-mention task; exclude edge from automation until confirmed</td><td>"12 mentions need a human match"</td></tr>
+<tr><td>Contradictory sources (Jira says A owns, ServiceNow says B)</td><td>Cross-source consistency rule</td><td>Raise as a finding; never auto-pick</td><td>Conflict card with both sources</td></tr>
+<tr><td>Circular chain found</td><td>Cycle detection (DRI-X-001)</td><td>Block sequence finalisation for the affected set; show the cycle path and suggested break points</td><td>Blocker with path highlighted in graph</td></tr>
+<tr><td>Jira write fails or partially applies</td><td>Read-back verification after write</td><td>Mark proposal "failed"; no retry loop on regulated items; alert approver</td><td>Approval inbox shows exact error</td></tr>
+<tr><td>Quarter or event-day load spike</td><td>Queue depth, p95 latency</td><td>Autoscale workers; prioritise active planning-event runs; defer Phase 2 monitor</td><td>Estimated completion time on pipeline screen</td></tr>
+<tr><td>Stale or drifting findings</td><td>Snapshot diff, last_validated age</td><td>Age out confidence; re-open at human review</td><td>"Last validated" shown on each edge</td></tr>
+</tbody></table></div>
+
+<h2 id="nfr">11. Scale, performance and operations</h2>
+<div class="tbl"><table>
+<thead><tr><th>Dimension</th><th>Haverstone volume (from brief)</th><th>Design target</th></tr></thead>
+<tbody>
+<tr><td>Teams / ARTs</td><td>38 / 6</td><td>Support 100+ teams without redesign</td></tr>
+<tr><td>Initiatives per PI</td><td>~90 in data package (~160 concurrent per brief)</td><td>500 per run</td></tr>
+<tr><td>Epics</td><td>~500</td><td>5,000 per snapshot</td></tr>
+<tr><td>Repositories</td><td>~140</td><td>2,000</td></tr>
+<tr><td>Full analysis latency</td><td>n/a</td><td>Under 10 minutes for a full ART; first findings streamed within ~60 seconds</td></tr>
+<tr><td>Availability</td><td>Planning-event days are critical</td><td>99.5% business hours, 99.9% during declared planning windows</td></tr>
+<tr><td>Recovery</td><td>n/a</td><td>RPO 24h (graph is rebuildable from sources); RTO 4h</td></tr>
+</tbody></table></div>
+<p>These volumes are small by data-platform standards: the architecture's difficulty is trust, entity resolution and governance, not throughput. A relational store with graph queries (or a managed graph database) is sufficient at this size; the choice is recorded as a decision in §16.</p>
+<h3>Operating model</h3>
+<ul>
+  <li><b>Product owner:</b> PMO lead (owns backlog, thresholds and adoption metrics).</li>
+  <li><b>Platform team:</b> small engineering team owning connectors, graph and orchestrator.</li>
+  <li><b>AI governance:</b> model-risk partner owns inventory, evaluation gates and prompt change control.</li>
+  <li><b>AI champions:</b> one RTE or EM per ART who triages unresolved mentions and tunes thresholds.</li>
+  <li><b>Cost control:</b> per-run token budget, caching of unchanged epics between snapshots (only changed items are re-extracted), cheaper model for classification and larger model only for ambiguous text.</li>
+</ul>
+
+<h2 id="platform">12. Platform choices (reference, cloud-neutral)</h2>
+<p>The case brief does not mandate a cloud. The reference stack below is deliberately swappable; the component boundaries in Figure 1 matter more than the products.</p>
+<div class="tbl"><table>
+<thead><tr><th>Concern</th><th>Reference choice</th><th>Alternatives</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td>Orchestration</td><td>Durable workflow engine (e.g. Temporal or cloud step functions)</td><td>Queue + worker with state table</td><td>Retries, timeouts and human-approval waits are first-class and auditable.</td></tr>
+<tr><td>Agent framework</td><td>Thin in-house layer with typed tool contracts</td><td>Off-the-shelf agent frameworks</td><td>Keeps the write allow-list and schema validation explicit and testable.</td></tr>
+<tr><td>Graph and metadata</td><td>PostgreSQL with graph queries</td><td>Managed graph database</td><td>Volumes are small; one operational store; strong audit tooling.</td></tr>
+<tr><td>Vector search</td><td>pgvector in the same database</td><td>Managed vector service</td><td>Fewer moving parts; entitlements enforced in one place.</td></tr>
+<tr><td>LLM access</td><td>Enterprise model endpoint via a gateway with private networking and no-training terms</td><td>Self-hosted model for restricted tiers</td><td>Gateway centralises prompt registry, filtering, evaluation and cost.</td></tr>
+<tr><td>Front end</td><td>Web app matching the four wireframe screens</td><td>Embedded Jira panel (later)</td><td>Fast to demo; Jira panel is a Phase 3 convenience.</td></tr>
+<tr><td>Observability</td><td>OpenTelemetry traces per run plus an LLM-specific evaluation dashboard</td><td>Existing enterprise APM</td><td>Each finding traceable to a run and step.</td></tr>
+</tbody></table></div>
+
+<h2 id="roadmap">13. Phasing</h2>
+<p>The brief favors a sharp, demonstrable slice. Phase 1 is sized so a small team can deliver it in 90 days and prove value before wider commitment.</p>
+<div class="phase">
+<div class="card"><h3>Phase 1 · 0 to 90 days</h3>
+<p><b>Prove it on one ART plus Core Banking &amp; Ledger.</b></p>
+<ul>
+<li>Read-only connectors: Jira, GitHub, Confluence, ServiceNow</li>
+<li>Extraction and entity resolution</li>
+<li>Graph with GitHub-vs-Jira edge distinction</li>
+<li>DRI-X-001, 002, 003, 004, 005 as rules</li>
+<li>Capacity radar for Core Banking &amp; Ledger</li>
+<li>Transparent sequencing with reasoning drawer</li>
+<li>Approval inbox for Jira link proposals</li>
+<li>Audit log and offline evaluation vs last 6 PIs</li>
+</ul>
+<p><b>Exit test:</b> beat the 61% pre-event identification baseline on the pilot ART and surface the ledger overcommitment before the event.</p></div>
+<div class="card"><h3>Phase 2 · 90 to 180 days</h3>
+<p><b>Make it live and wider.</b></p>
+<ul>
+<li>Living-record monitor and drift routing</li>
+<li>Archer integration and regulated-item gating</li>
+<li>Roll out to all 6 ARTs</li>
+<li>DRI-X-006 (late-discovered) from event-time diffs</li>
+<li>Notifications into Slack / Teams</li>
+<li>Retire Spaghetti Sheet as source of truth</li>
+</ul>
+<p><b>Exit test:</b> mid-PI discovered dependencies trending toward the &lt;5% target.</p></div>
+<div class="card"><h3>Phase 3 · 180 days onward</h3>
+<p><b>Extend and harden.</b></p>
+<ul>
+<li>DRI-X-007 informal-channel detection (opt-in)</li>
+<li>Jira embedded panel</li>
+<li>Scenario modeling ("what if we defer X?")</li>
+<li>Additional sources (e.g. Azure DevOps)</li>
+<li>Multi-region, key management, full DR</li>
+</ul>
+<p><b>Exit test:</b> prep effort per ART trending from ~64 toward 24 hours.</p></div>
+</div>
+
+<h3>Mapping to KPIs and measurement</h3>
+<div class="tbl"><table>
+<thead><tr><th>KPI (brief)</th><th>Mechanism</th><th>Leading indicator in first PIs</th></tr></thead>
+<tbody>
+<tr><td>Dependencies identified pre-event: 61% → 90%</td><td>Inferred GitHub and text edges, confirmed by owners</td><td>Share of final-plan dependencies that existed as confirmed edges 1 week before the event</td></tr>
+<tr><td>Discovered mid-PI: 19% → &lt;5%</td><td>Living record, drift alerts</td><td>Number of drift alerts acted on vs mid-PI blockers recorded</td></tr>
+<tr><td>Shared-services demand: ~145% → ≤100% visible pre-event</td><td>Capacity radar</td><td>Overcommitment visible ≥2 weeks before event; re-scope decisions logged</td></tr>
+<tr><td>Prep effort: 64h → 24h</td><td>Auto-extraction replaces manual reconciliation</td><td>Self-reported and workflow-measured EM/RTE hours</td></tr>
+<tr><td>Re-sequencing passes: 3.4 → 1.0</td><td>Pre-event sequencing and conflict flags</td><td>Passes at event; share of recommended sequences accepted unchanged</td></tr>
+<tr><td>Ownerless records</td><td>DRI-X-002 decision queue</td><td>Baseline derived from service_ownership_map; time to decision</td></tr>
+</tbody></table></div>
+<div class="callout warn"><b>Caution on targets</b>Leadership's "dependencies identified before the event" target of 90% and the "&lt;5% mid-PI" target are not independent: improving one largely moves the other, and neither measures whether the right dependencies were found. Measure precision (confirmed edges / proposed edges) alongside recall, or the system can look good by flagging everything.</div>
+
+<h2 id="ainative">14. Why AI-native rather than AI-assisted</h2>
+<ul>
+  <li><b>The input is unstructured and cross-system.</b> Dependencies exist in prose and in code. Without a model that reads both and reconciles them, there is nothing to analyse; this is the core of the problem rather than a convenience layer on a finished process.</li>
+  <li><b>Inference replaces tagging.</b> The human role shifts from authoring dependency records to confirming or rejecting candidates, which is what keeps EM effort down.</li>
+  <li><b>The system stays alive.</b> A tool that only helps during planning leaves the post-PI drift problem untouched. Continuous re-evaluation is only feasible when extraction is automated.</li>
+  <li><b>Learning loop.</b> Confirmations and rejections accumulate as labeled data, improving thresholds and extraction prompts per ART, within governed change control.</li>
+</ul>
+<p>The deliberate counterweight: the model is kept out of authority. This is the AI-native pattern appropriate to a regulated bank: AI does the discovery work at a scale people cannot, and deterministic code and named humans own every consequential decision.</p>
+
+<h2 id="wireframe">15. Alignment with the wireframes</h2>
+<p>The architecture supports all four screens (intake, agent pipeline, results, results with reasoning drawer). A few adjustments to the wireframe are recommended so the demo matches the Haverstone case.</p>
+<div class="tbl"><table>
+<thead><tr><th>Wireframe element</th><th>Architecture support</th><th>Recommended change</th></tr></thead>
+<tbody>
+<tr><td>Intake: upload Jira/ADO export or CSV; knowledge base list</td><td>Connectors and CSV loader feed the snapshot step</td><td>Add <b>GitHub repos</b> and <b>service ownership map</b> as knowledge sources; the case's core insight is code-level dependencies, and the current knowledge base list has none. Replace "ADO" with the case's Jira/GitHub.</td></tr>
+<tr><td>Pipeline: five agents with live status</td><td>Streamed run events from the orchestrator</td><td>Add a <b>Capacity radar</b> stage; show per-agent source counts and the share of edges that came from code vs text.</td></tr>
+<tr><td>Results: stats, graph, risks / sequence / dependencies tabs</td><td>Graph payload with edge channel; risk and sequence tabs from agent outputs</td><td>Add a <b>capacity tab</b> (ledger demand vs capacity) and style GitHub-only edges distinctly from Jira-documented ones, as the case requires.</td></tr>
+<tr><td>Drawer: why flagged, affected initiatives, sources, suggested actions</td><td>Evidence bundle per finding</td><td>Add the DRI pattern code, confidence, and a "Confirm / Reject / Defer" row. Replace "Copy reasoning" as the only primary action with the human decision controls.</td></tr>
+<tr><td>Sample data (Returns, PO Portal, Customer Profile, ADO)</td><td>n/a</td><td>The sample content reads as retail commerce. Re-skin to the bank's vocabulary (ledger posting, real-time settlement API, fraud scoring) and use the provided CSVs so the demo runs on real-shaped data rather than hardcoded text.</td></tr>
+<tr><td>"Flag for PI planning" action</td><td>Creates a decision item on the pre-PI report</td><td>Make the Jira write (link proposal) a separate, approval-gated action to stay within constraints.</td></tr>
+</tbody></table></div>
+
+<h2 id="adr">16. Key decisions, assumptions and open items</h2>
+<h3>Architecture decisions</h3>
+<div class="tbl"><table>
+<thead><tr><th>#</th><th>Decision</th><th>Reason</th><th>Trade-off</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>Deterministic rules and algorithms own DRI, capacity and sequencing; LLM owns language tasks</td><td>Auditability and trust; testable against historical PIs</td><td>Less flexible for novel patterns; mitigated by human-reviewed candidate patterns</td></tr>
+<tr><td>2</td><td>Propose-only write-back with approval inbox</td><td>Meets the constraint on systems of record and regulated work</td><td>Adds a human step; accepted deliberately</td></tr>
+<tr><td>3</td><td>Graph is persistent; findings are recomputed per snapshot</td><td>Reuse confirmed knowledge, avoid stale conclusions</td><td>Needs snapshot versioning and diffing</td></tr>
+<tr><td>4</td><td>Relational store with graph queries and vector extension</td><td>Small data volumes; one store to govern</td><td>Revisit if graph traversal needs grow</td></tr>
+<tr><td>5</td><td>ServiceNow is the ownership authority; conflicts surface, never auto-resolve</td><td>Meets no-silent-reassignment rule</td><td>Some conflicts wait for a human</td></tr>
+<tr><td>6</td><td>Do not store source code, only manifest facts</td><td>Lower data-protection exposure</td><td>Cannot re-parse code later without re-reading GitHub</td></tr>
+</tbody></table></div>
+
+<h3>Assumptions to validate</h3>
+<ul>
+  <li>The data package provides enough signal in <code>github_repos.csv</code> (declared internal dependencies) to derive code-level edges without parsing source.</li>
+  <li>Jira comment and description fields can be read for all 6 ARTs under one service principal.</li>
+  <li>Archer exposes sign-off status by API or export; if not, Phase 1 uses a manual mapping table for regulated items.</li>
+  <li>Model provider terms (no training, retention) satisfy Haverstone's third-party risk review.</li>
+  <li>Retention and model-risk tier are placeholders pending Haverstone policy.</li>
+</ul>
+<h3>Open questions for coaches or stakeholders</h3>
+<ul>
+  <li>Which ART is the best Phase 1 pilot: the one with the most Core Banking &amp; Ledger dependence, or the one with the most dependable data?</li>
+  <li>Is "confirmed by owner" the right trust bar for automatic inclusion in the pre-PI report, or should low-confidence edges appear as a separate section?</li>
+  <li>Who is accountable for the ownerless-dependency decision queue between PIs?</li>
+</ul>
+
+</main>
+</div>
+</body>
+</html>
