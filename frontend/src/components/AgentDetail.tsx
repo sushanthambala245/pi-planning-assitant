@@ -1,8 +1,11 @@
-import type { Finding } from '../types'
+import { useState } from 'react'
+import { findingInitiatives } from '../lib/deps'
+import type { Analysis, DependencyRow, Finding } from '../types'
 import type { AgentWithState } from './AgentPipeline'
-import { FindingCard } from './FindingCard'
+import { FindingRow } from './FindingRow'
 
 const stateText = { done: 'Complete', active: 'Running…', wait: 'Not started yet' } as const
+const FIRST = 8
 
 function List({ label, items, icon }: { label: string; items: string[]; icon: string }) {
   if (!items.length) return null
@@ -16,8 +19,22 @@ function List({ label, items, icon }: { label: string; items: string[]; icon: st
   )
 }
 
-export function AgentDetail({ agent, findings }: { agent: AgentWithState; findings: Finding[] }) {
+interface Props {
+  agent: AgentWithState
+  findings: Finding[]
+  analysis: Analysis
+  depsByKey: Map<string, DependencyRow>
+  labelOf: (key: string) => string
+}
+
+export function AgentDetail({ agent, findings, analysis, depsByKey, labelOf }: Props) {
+  const [open, setOpen] = useState<string | null>(null)
+  const [all, setAll] = useState(false)
   const started = agent.state !== 'wait'
+  const titleOf = (f: Finding) => {
+    const ids = findingInitiatives(f, analysis)
+    return ids.length === 1 ? analysis.initiatives.find((i) => i.id === ids[0])?.title : undefined
+  }
   return (
     <div className="agent-detail">
       <div className="agent-detail-head">
@@ -43,8 +60,23 @@ export function AgentDetail({ agent, findings }: { agent: AgentWithState; findin
           <List label="Notes" items={agent.notes} icon="ti-info-circle" />
           {findings.length > 0 && (
             <div className="detail-block">
-              <div className="findings-label">Findings from this agent</div>
-              {findings.map((f) => <FindingCard key={f.text} finding={f} />)}
+              <div className="findings-label">Findings from this agent ({findings.length})</div>
+              {(all ? findings : findings.slice(0, FIRST)).map((f) => (
+                <FindingRow
+                  key={f.text}
+                  finding={f}
+                  dep={f.depKey ? depsByKey.get(f.depKey) : undefined}
+                  expanded={open === f.text}
+                  onToggle={() => setOpen((o) => (o === f.text ? null : f.text))}
+                  labelOf={labelOf}
+                  prefix={titleOf(f)}
+                />
+              ))}
+              {findings.length > FIRST && (
+                <button className="link-btn" onClick={() => setAll((a) => !a)}>
+                  {all ? 'Show fewer' : `Show all ${findings.length}`}
+                </button>
+              )}
             </div>
           )}
           {!agent.summary && !agent.inputs.length && !agent.outputs.length && !agent.notes.length && !findings.length && (

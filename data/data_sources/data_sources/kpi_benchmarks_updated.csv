@@ -1,0 +1,11 @@
+﻿KPI ID,KPI Metric,Unit,Benchmark Type,Baseline,Target,Goal,Improvement Needed,Source,Data Status,Notes
+KPI-001,PI preparation time per ART,Hours,Haverstone internal,64.0,24.0,Lower is better,40 hours reduction,Case study section 4 / 13,Case study,Reported current state and leadership target
+KPI-002,Dependencies identified before PI event,Percent,Haverstone internal,61.0,90.0,Higher is better,29 percentage points increase,Case study section 4 / 13,Case study,Reported current state and leadership target
+KPI-003,Dependencies discovered during PI,Percent,Haverstone internal,19.0,5.0,Lower is better,14 percentage points reduction,Case study section 4 / 13,Case study,"Leadership target is below 5%, displayed value is threshold"
+KPI-004,Planning resequencing cycles,Passes,Haverstone internal,3.4,1.0,Lower is better,2.4 fewer passes,Case study section 4 / 13,Case study,Median current vs target
+KPI-005,Team confidence score,Score Out Of 5,Haverstone internal,3.1,4.2,Higher is better,1.1 point increase,Case study section 4 / 13,Case study,Average current vs target
+KPI-006,Stories blocked by unflagged dependencies,Percent,Haverstone internal,14.0,4.0,Lower is better,10 percentage points reduction,Case study section 4 / 13,Case study,"Leadership target below 4%, displayed value is threshold"
+KPI-007,Shared-services capacity utilization,Percent,Haverstone internal,145.0,100.0,Lower is better,45 percentage points reduction,Case study section 4 / 13,Case study,Case study describes Core Banking & Ledger at approx 145%
+KPI-008,Circular dependency chains per PI,Chains,Haverstone internal,3.0,0.0,Lower is better,3 fewer chains,Case study section 4,Illustrative midpoint of case-study range,Current given as 2-4; 3 is illustrative midpoint
+KPI-009,Dependencies with an assigned owner,Percent,Illustrative internal target,,95.0,Higher is better,Baseline needed,Synthetic prototype assumption,Illustrative only,Case study explicitly asks team to derive baseline and define target.
+KPI-010,New dependencies verified,Percent,Illustrative internal target,,85.0,Higher is better,Baseline needed,Synthetic prototype assumption,Illustrative only,"A suggested evaluation KPI, not a reported Haverstone or industry result."

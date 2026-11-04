@@ -11,7 +11,7 @@ export interface IngestResult {
 }
 
 let noticeSeq = 0
-const notice = (kind: Notice['kind'], text: string): Notice => ({ id: ++noticeSeq, kind, text })
+export const notice = (kind: Notice['kind'], text: string): Notice => ({ id: ++noticeSeq, kind, text })
 
 const baseName = (path: string) => path.split(/[\\/]/).pop() ?? path
 
@@ -21,7 +21,7 @@ const prettify = (file: string) => {
 }
 
 /** Picks an icon/colour for a knowledge-source file from keywords in its name. */
-function classify(file: string): { kind: KbKind; icon: string } {
+export function classify(file: string): { kind: KbKind; icon: string } {
   const n = file.toLowerCase()
   if (/team|ownership|director|capacity/.test(n)) return { kind: 'team', icon: 'ti-users' }
   if (/depend|link/.test(n)) return { kind: 'inv', icon: 'ti-file-code' }
@@ -30,7 +30,12 @@ function classify(file: string): { kind: KbKind; icon: string } {
   return { kind: 'conf', icon: 'ti-notes' }
 }
 
-function ingestCsv(file: string, text: string, out: IngestResult) {
+export interface IngestOptions {
+  /** Initiatives read from one file; the remaining rows are skipped and reported. */
+  maxInitiativesPerFile?: number
+}
+
+function ingestCsv(file: string, text: string, out: IngestResult, opts: IngestOptions) {
   const { headers, records } = parseCsvTable(text)
   if (!headers.length) {
     out.notices.push(notice('error', `${file}: empty or unreadable CSV`))
@@ -44,16 +49,22 @@ function ingestCsv(file: string, text: string, out: IngestResult) {
     !headers.includes('epic_id')
 
   if (isInitiatives) {
-    const list = records
-      .filter((r) => r.initiative_id)
-      .map<Initiative>((r) => ({
-        id: r.initiative_id,
-        title: r.initiative_name || r.title || r.name || r.initiative_id,
-        description: r.description ?? '',
-        meta: [r.owning_team, r.priority, r.target_pi].filter(Boolean).join(' · ') || undefined,
-      }))
+    const all = records.filter((r) => r.initiative_id)
+    const limit = opts.maxInitiativesPerFile ?? all.length
+    const list = all.slice(0, limit).map<Initiative>((r) => ({
+      id: r.initiative_id,
+      title: r.initiative_name || r.title || r.name || r.initiative_id,
+      description: r.description ?? '',
+      meta: [r.owning_team, r.priority, r.target_pi].filter(Boolean).join(' · ') || undefined,
+      team: r.owning_team || undefined,
+      pi: r.target_pi || undefined,
+      priority: r.priority || undefined,
+    }))
     out.initiatives.push(...list)
-    out.notices.push(notice('ok', `${file}: loaded ${list.length} initiatives`))
+    const skipped = all.length - list.length
+    out.notices.push(skipped
+      ? notice('error', `${file}: loaded the first ${list.length} initiatives; ${skipped} skipped (limit ${limit} per file)`)
+      : notice('ok', `${file}: loaded ${list.length} initiatives`))
     return
   }
 
@@ -76,7 +87,9 @@ function ingestJson(file: string, text: string, out: IngestResult) {
   }
 
   const obj = (typeof raw === 'object' && raw !== null && !Array.isArray(raw) ? raw : {}) as Record<string, unknown>
-  const isBundle = 'initiatives' in obj || 'knowledgeSources' in obj || 'analysis' in obj
+  // An analysis lists its own initiatives too, so its fields decide before `initiatives` does.
+  const isAnalysis = !('analysis' in obj) && ['agents', 'findings', 'graph', 'risks'].some((k) => k in obj)
+  const isBundle = !isAnalysis && ('initiatives' in obj || 'knowledgeSources' in obj || 'analysis' in obj)
 
   try {
     if (Array.isArray(raw)) {
@@ -117,12 +130,12 @@ function ingestJson(file: string, text: string, out: IngestResult) {
   }
 }
 
-function ingestEntry(path: string, bytes: Uint8Array, out: IngestResult) {
+function ingestEntry(path: string, bytes: Uint8Array, out: IngestResult, opts: IngestOptions) {
   const file = baseName(path)
   if (!file || file.startsWith('.') || file.startsWith('~$')) return
   const ext = file.split('.').pop()?.toLowerCase()
 
-  if (ext === 'csv') ingestCsv(file, strFromU8(bytes), out)
+  if (ext === 'csv') ingestCsv(file, strFromU8(bytes), out, opts)
   else if (ext === 'json') ingestJson(file, strFromU8(bytes), out)
   else if (ext === 'xlsx' || ext === 'xls') {
     out.sources.push({
@@ -136,7 +149,7 @@ function ingestEntry(path: string, bytes: Uint8Array, out: IngestResult) {
 }
 
 /** Reads uploaded CSV / JSON / XLSX / ZIP files and sorts them into initiatives, knowledge sources and analysis. */
-export async function ingestFiles(files: File[]): Promise<IngestResult> {
+export async function ingestFiles(files: File[], opts: IngestOptions = {}): Promise<IngestResult> {
   const out: IngestResult = { initiatives: [], sources: [], analysis: null, notices: [] }
 
   for (const f of files) {
@@ -146,8 +159,8 @@ export async function ingestFiles(files: File[]): Promise<IngestResult> {
         const entries = unzipSync(bytes)
         const names = Object.keys(entries).filter((p) => !p.endsWith('/') && !p.startsWith('__MACOSX'))
         if (!names.length) out.notices.push(notice('error', `${f.name}: archive is empty`))
-        for (const p of names) ingestEntry(p, entries[p], out)
-      } else ingestEntry(f.name, bytes, out)
+        for (const p of names) ingestEntry(p, entries[p], out, opts)
+      } else ingestEntry(f.name, bytes, out, opts)
     } catch {
       out.notices.push(notice('error', `${f.name}: could not be read`))
     }

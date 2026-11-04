@@ -14,10 +14,10 @@
 
 The PI Planning Assistant helps programme teams prepare for PI (Program Increment) planning. A user loads a set of initiatives and supporting knowledge sources; a chain of AI agents analyses them to find dependencies, recommend a sequence and flag risks; the UI explains *why* each finding was made.
 
-This document describes the **browser front end only**. It implements the four wireframe screens (Intake → Agent pipeline → Results → Results with reasoning drawer) and is built so that the planned FastAPI + SSE backend can be plugged in without reworking the UI.
+This document describes the **browser front end only**. It implements the four wireframe screens (Intake → Agent pipeline → Results → Results with reasoning drawer). With the FastAPI backend running it starts and polls real runs and drives the review; without it, it replays an uploaded analysis file.
 
-**In scope now:** intake, analysis workflow viewer, results, reasoning drawer, help, theming.
-**Out of scope now:** the analysis engine, authentication, persistence (drafts), real Jira/ADO/Confluence connectors.
+**In scope now:** intake, analysis workflow viewer, results with a decision summary, reasoning drawer, review and export, help, theming.
+**Out of scope now:** authentication (the backend's demo roster stands in), persistence of drafts, the Ask chat, real Jira/ADO/Confluence connectors.
 
 ## 2. Design principles
 
@@ -47,30 +47,37 @@ The step bar in the header is both progress indicator and navigation; locked ste
 ## 4. Screens
 
 ### 4.1 Intake
-- **Initiatives panel** — drag/drop or click-to-upload zone, scrollable list (title, description, `id · team · priority · PI`), per-row remove, inline "Add initiative" form.
-- **Knowledge base panel** — one row per source (icon by type, name, row/column counts, "Ready" badge, remove), "Add knowledge source" opens the file picker.
+- **Initiatives panel** — drag/drop or click-to-upload zone showing the limits (initiatives per file, initiatives per analysis), search box plus team / PI filters, a tick box per row with a `n / limit selected` pill (boxes disable at the limit), *Select shown*, *Clear selection*, *Selected only*, *Remove all*, per-row remove, inline "Add initiative" form. New uploads are ticked while there is room; the rest are reported in a notice.
+- **Knowledge base panel** — one row per source (icon by type, name, row counts, status badge). With the backend: every source it knows, with its real status (Ready, Partial, Invalid, Missing), read-only, and *Reload from the data folder*. Without it: uploaded files, each removable, and *Add knowledge source* opens the file picker.
 - **Notices** — a compact, scrollable list of results from each upload (success/error per file), dismissible.
-- **Footer** — live counts; *Save draft* (disabled, not built); *Analyse initiatives* (disabled until ≥ 1 initiative).
+- **Footer** — live counts; *Save draft* (disabled, not built); *Analyse initiatives* (disabled until ≥ 1 initiative; shows *Starting…* and ignores further clicks until the backend answers, so one click starts one run).
 
 ### 4.2 Analysis (agent pipeline)
-- **Run bar** — status ("Ready", "Analysing…", "Analysis complete"), counts, total time, and actions: *Back to intake*, *Start / Re-run analysis*, *View results* (enabled when done).
+- **Run bar** — status ("Ready", "Analysing…", "Analysis complete"), counts, total time, and actions: *Back to intake*, *Run again (new run)* for a backend run (it costs LLM calls again) or *Replay* for an uploaded file, *View results* (enabled when done).
 - **Pipeline strip** — one clickable circle per agent: waiting (dashed), running (spinner), done (check); progress bar underneath.
-- **Findings column** — findings revealed progressively during a run, all findings once complete; plus *Knowledge sources used*.
+- **Findings column** — two views and an initiative filter. *Summary*: run totals (systems touched, dependencies needing a change, awareness-only, confirmed both ways) and one card per initiative (systems split by type with owning teams, its dependencies needing a change, risks, sequence step). *Findings by initiative*: collapsible groups per initiative plus *Across initiatives*; type chips, *Hide no-change links* (on by default), expand / collapse all. Each finding is one line: hover shows a preview card, double-click / chevron / Enter expands it inline. Findings are revealed progressively during a run; *Knowledge sources used* is collapsed underneath.
 - **Agent details column** — for the selected agent: state and duration, summary, inputs, outputs, notes, and the findings it contributed. Defaults to the running agent, else the last finished.
 - **Empty state** — if no analysis is loaded: explanation, *Upload analysis file*, *File format help*, *Back to intake*.
 - The screen stays reachable after a run (via step tab or the *How was this analysed?* link on Results). It does **not** auto-advance, so users can inspect before moving on.
 
 ### 4.3 Results
-- **Stat row** — initiatives analysed, dependencies (and how many inferred), risk flags by severity, recommended sequence length. All derived from the data, nothing stored.
-- **Dependency graph** — SVG; nodes coloured by domain, explicit edges solid grey, AI-inferred edges dashed blue. Click/Enter on a node opens the first risk involving it. Non-involved nodes dim while a risk is open.
-- **Side panel** — tabs: *Risks* (severity-coded list), *Sequence*, *Dependencies* (explicit vs inferred).
-- **AI summary strip** — recommended sequence and key risk, with a link back to the Analysis screen.
-- **Header actions** — *Export* (downloads `{ initiatives, analysis }` as JSON), *New analysis* (clears the run, keeps loaded data).
+- **Decision summary** (top) — what to take away before any chart. Left: the *Recommended order* (one line per step) and the summary paragraph, labelled as written by the LLM or a template. Right: *Before PI planning* — links not in Jira yet, risks grouped by the rule that raised them (click opens the first), links that need a change but were only inferred, and the risk checks that did not run or ran on partial data ("no flag there does not mean no risk"). Below it, for a backend run, the **review panel** (§4.5).
+- **Stat row** — initiatives analysed, dependencies needing a change (by type, and how many need none), not in Jira yet, risk flags by severity, confirmed. All derived from the data, nothing stored. (Older files without dependency rows get the original four cards.)
+- **Filter bar** — initiative, *Only dependencies that need a change* (on by default), level (Initiative / Team / System). One set of filters drives the graph, the lists and the caption.
+- **Dependency graph** — SVG in two columns: the selected initiatives on the left in sequence order, what they depend on (other initiatives, teams, systems) on the right, labels beside the nodes, so the graph grows in height instead of crowding (the box scrolls). Nodes coloured by ART and shaped by level (initiative circle, team square, system diamond; team labels end in "team"); stated edges solid grey, edges inferred from code or ownership dashed blue, no-change edges faint; links between two selected initiatives arc beside the left column. Hover an edge for its reason. Click/Enter on a node opens the node drawer. Older files without an initiative list keep the ring layout.
+- **Side panel** — tabs: *Dependencies* (grouped by change type; each row expands to its hop path, per-method reasons, verdict and evidence), *Teams* (the same rows grouped by the team they ask something of, busiest team first, with a "no owning team" group), *Risks* (severity-coded list, flagged ones marked), *Sequence* (steps with their reason, plus the shared-system links to coordinate within a step).
+- **Node drawer** — "Why is this here?": what pulled the node in, what depends on it and what it depends on (each expandable), the risks involving it, and a key to the change types.
+- **Header actions** — *Export* (downloads the analysed initiatives, flagged risks and the analysis as JSON; it can be uploaded again to replay), *New analysis* (clears the run, keeps loaded data).
+
+Words used everywhere: *stated* = written down in Jira, Confluence or Slack; *inferred* = found in code manifests or the ownership map; *confirmed* = both (per initiative and owning team, so a link can be confirmed by a related one, which its detail says).
 
 ### 4.4 Reasoning drawer
-Slides over the right of the results area. Shows severity badge, **why the AI flagged this**, initiatives affected, knowledge sources used, and suggested follow-ups (disabled until the backend exists). Controls: previous/next risk, close, *Flag for PI planning* (local toggle), *Copy reasoning* (clipboard).
+Slides over the right of the results area. Shows severity badge, title and the rule that raised it, **why the AI flagged this**, initiatives affected, knowledge sources used, and suggested follow-ups (disabled: not available in this version). Controls: previous/next risk, close, *Flag for PI planning* (per risk; saved on the backend for a live run, kept in the page for a replayed file, included in Export), *Copy reasoning* (clipboard).
 
-### 4.5 Global chrome
+### 4.5 Review and export (backend runs)
+The run pauses for a human before anything is exported. The panel picks a reviewer from `GET /api/reviewers` (the server looks up the role; only RTE, EM and Architect may decide) and offers *Approve and export* or *Challenge the order…* ("A must come before B", with an optional note). The app then polls the run again: a challenge re-sequences and returns for review with the constraint listed; an approval writes the proposals and the panel links to *Jira link proposals (CSV)*, *Sequence note (Markdown)* and *Audit trail (JSON)*. Nothing is written to Jira. Errors (e.g. a view-only reviewer) show under the panel.
+
+### 4.6 Global chrome
 - **Step bar** (Intake · Analysis · Results) — navigation + progress.
 - **Theme picker** (palette icon) — five themes, persisted in `localStorage`.
 - **Help** (`?` icon) — right-hand drawer with tabs *Screens*, *Buttons* (current screen's buttons listed first), *Data files*.
@@ -90,12 +97,16 @@ frontend/src
 ├── components/
 │   ├── TopBar, ThemePicker, HelpDrawer, EmptyState
 │   ├── InitiativeList, KnowledgeBaseList                       (intake)
-│   ├── AgentPipeline, AgentDetail, FindingCard                 (analysis)
-│   └── StatRow, DependencyGraph, SidePanel, ReasoningDrawer    (results)
+│   ├── AgentPipeline, AgentDetail, InitiativeSummary,
+│   │   FindingGroups, FindingRow, SystemChips                  (analysis)
+│   ├── DecisionSummary, ReviewPanel, StatRow, DependencyGraph,
+│   │   SidePanel, ReasoningDrawer, NodeDrawer                  (results)
+│   └── Badges, DepDetail, InitiativeFilter                     (shared)
 ├── lib/
 │   ├── ingest.ts           files → initiatives / sources / analysis
 │   ├── csv.ts              RFC-4180 CSV parser
 │   ├── analysis.ts         tolerant JSON → Analysis normaliser
+│   ├── deps.ts             change types, levels, verdicts: labels, icons, hints
 │   └── theme.ts            theme list, persistence
 └── data/domains.ts         domain → node colour
 ```
@@ -109,6 +120,9 @@ State is held in `App` with `useState` (no state library — the app is small an
 | `initiatives`, `sources` | arrays | merged by `id` on every upload (re-upload updates, never duplicates) |
 | `analysis` | `Analysis \| null` | the single contract the Analysis/Results screens render |
 | `run` | `{ status: idle \| running \| done, current }` | `current` = index of running agent |
+| `runId`, `runStatus` | backend run id and status | kept after the run ends, for review, flags and exports |
+| `review`, `flags`, `pending` | review state from the run | `pending` = a review was sent and the run is acting on it |
+| `starting` | boolean | Analyse is waiting for the backend; blocks a second run |
 | `notices`, `helpOpen` | UI state | |
 
 Screen-local state (selected agent, open risk, active side tab, add-form) lives in the screen/component that uses it. Navigation availability is computed in `App` (`enabled`) and passed to `TopBar`.
@@ -138,8 +152,8 @@ Analysis { agents[], findings[], sourcesUsed[], graph{nodes[],edges[]}, risks[],
 
 `normalizeAnalysis` fills defaults for missing fields, so partial payloads work. Graph nodes without coordinates are auto-laid-out on an ellipse; with > 6 nodes the graph switches to compact dots with labels underneath.
 
-### 5.5 Run simulation (temporary)
-Until a backend exists, **Analyse** replays a loaded `Analysis` one agent at a time (1.2 s per agent, `STEP_MS` in `App.tsx`) so the workflow screen behaves as it will with live streaming. With no analysis loaded, the Analysis screen shows the empty state.
+### 5.5 Live runs and replay
+With the backend, **Analyse** starts a run and `App.tsx` polls `GET /api/runs/{id}/analysis` every `POLL_MS`; agents, findings and results fill in as they arrive, and polling resumes after each review. Without it, **Analyse** replays a loaded `Analysis` one agent at a time (`STEP_MS` per agent). With no analysis loaded, the Analysis screen shows the empty state.
 
 ## 6. Theming and visual design
 
@@ -168,12 +182,8 @@ Token groups: surfaces (`--bg`, `--surface`, `--surface1/2`), borders, text (`--
 - Notices use `aria-live="polite"`.
 - **Known gaps:** colour contrast has not been audited per theme; the help drawer doesn't trap focus; the SVG graph isn't fully navigable by keyboard beyond tabbing between nodes.
 
-## 8. Backend integration plan
-1. Add a small API client (`src/api/`) for `POST /analyses` (start) and `GET /analyses/:id/events` (SSE).
-2. Replace the timer in `App.tsx` with SSE events that update `analysis` incrementally (agent state, findings, then graph/risks) — the screens already render partial data (`run.current`, progressive findings).
-3. Replace file-based `knowledgeSources` with backend-registered sources; keep upload as a fallback.
-4. Wire the disabled controls: *Save draft*, suggested follow-up prompts (chat endpoint), Excel parsing, *Add knowledge source* connectors.
-5. Remove the JSON-analysis upload path or keep it as a developer/demo mode.
+## 8. Backend integration
+Done: the client in `src/api/client.ts` covers health, initiatives (list, add, upload), sources (list, reload), runs (start, poll the analysis view), reviewers, review, flags and export downloads. The UI polls rather than using the SSE stream (`GET /api/runs/{id}/events` exists). Not wired yet: the Ask chat (`POST /api/runs/{id}/ask`) and suggested follow-ups, *Save draft*, Excel parsing. The JSON-analysis upload stays as a replay / demo mode.
 
 ## 9. Build, run, quality
 ```bash
@@ -189,12 +199,12 @@ npm.cmd run build      # tsc type-check + production build to dist/
 ## 10. Known limitations and open questions
 | # | Item | Impact |
 |---|---|---|
-| 1 | No analysis engine; Analysis/Results need an uploaded analysis JSON | cannot demo end-to-end from CSVs alone |
+| 1 | Without the backend, Analysis/Results need an uploaded analysis JSON | start the backend for live runs |
 | 2 | Initiatives are not edited once added (only removed) | minor |
 | 3 | No persistence — refresh clears loaded data (theme is remembered) | consider `localStorage`/IndexedDB or backend drafts |
 | 4 | Large datasets: initiative list renders all rows (90 is fine; thousands would need virtualisation) | future |
 | 5 | Excel files are not parsed | listed only |
-| 6 | Graph layout is naive (ellipse) for many nodes; no zoom/pan | needs a layout lib at scale |
+| 6 | Two-column graph: readable to ~15 initiatives and ~30 targets, edges still cross; no zoom/pan | filter to one initiative, or a layout lib at scale |
 | 7 | No unit/e2e tests | add Vitest + Playwright |
 | 8 | Contrast/focus-trap accessibility gaps (see §7) | audit before wider release |
 
