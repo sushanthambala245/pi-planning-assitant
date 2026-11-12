@@ -25,8 +25,9 @@ export function TopBar({ current, enabled, onNavigate, onHelp, children, connect
     <header className="topbar">
       <div className="logo-wrap">
         <div className="acn-logo" aria-label="Accenture">
-          <svg width="26" height="26" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M5 5L18 13L5 21" stroke="#A100FF" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+          {/* The Accenture "greater-than" symbol: a filled chevron with a flat left edge and a flat tip, as in the brand mark */}
+          <svg width="24" height="26" viewBox="0 0 33 36" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M0 0L33 13.5V22.5L0 36V26L20.5 17.5L0 9.5Z" fill="#A100FF" />
           </svg>
         </div>
         <div className="logo-divider" />
