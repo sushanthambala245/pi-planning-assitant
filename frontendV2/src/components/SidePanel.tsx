@@ -27,6 +27,8 @@ interface Props {
   labelOf: (key: string) => string
   tab: SideTab
   onTab: (tab: SideTab) => void
+  /** Which tabs this panel offers (default: all); a single tab hides the tab bar. */
+  only?: SideTab[]
 }
 
 export function DepRow({ dep, open, onToggle, labelOf }: { dep: DependencyRow; open: boolean; onToggle: () => void; labelOf: (k: string) => string }) {
@@ -59,7 +61,7 @@ function HiddenNote({ n, onShow }: { n: number; onShow: () => void }) {
   )
 }
 
-export function SidePanel({ analysis, deps, risks, initiative, hiddenNoChange, onShowNoChange, activeRiskId, onSelectRisk, flags, labelOf, tab, onTab }: Props) {
+export function SidePanel({ analysis, deps, risks, initiative, hiddenNoChange, onShowNoChange, activeRiskId, onSelectRisk, flags, labelOf, tab, onTab, only }: Props) {
   const [open, setOpen] = useState<string | null>(null)
   const { sequence, steps, graph } = analysis
   const label = (id: string) => graph.nodes.find((n) => n.id === id)?.label ?? id
@@ -71,7 +73,7 @@ export function SidePanel({ analysis, deps, risks, initiative, hiddenNoChange, o
     Risks: risks.length,
     Sequence: steps.length || sequence.length,
   }
-  const shown = legacy ? tabs.filter((t) => t !== 'Teams') : tabs
+  const shown = (legacy ? tabs.filter((t) => t !== 'Teams') : tabs).filter((t) => !only || only.includes(t))
   const row = (d: DependencyRow) => (
     <DepRow key={d.key} dep={d} open={open === d.key} onToggle={() => setOpen((o) => (o === d.key ? null : d.key))} labelOf={labelOf} />
   )
@@ -81,7 +83,7 @@ export function SidePanel({ analysis, deps, risks, initiative, hiddenNoChange, o
 
   return (
     <div className="side-panel">
-      <div className="side-tabs" role="tablist">
+      {shown.length > 1 && <div className="side-tabs" role="tablist">
         {shown.map((t) => (
           <button
             key={t}
@@ -93,7 +95,7 @@ export function SidePanel({ analysis, deps, risks, initiative, hiddenNoChange, o
             {t} <span className="tab-n">{counts[t]}</span>
           </button>
         ))}
-      </div>
+      </div>}
       <div className="side-content">
         {tab === 'Dependencies' && legacy && (graph.edges.length === 0
           ? <div className="list-empty">No dependencies were found.</div>

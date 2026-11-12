@@ -127,6 +127,55 @@ without `initiatives` keep the ring layout: `x` / `y` are used when every node h
 (the backend sends the owning ART; Platform, Compliance, Product, Data, Other have fixed
 colours; any other name gets a stable fallback colour).
 
+### Delivery schedule (`schedule`)
+
+Drives the Timeline view on the Results screen. Absent in older files and while a run has not
+reached sequencing; the timeline then shows one column per step instead of sprints.
+
+```jsonc
+"schedule": {
+  "pi": "PI-2026-06",
+  "piSprints": 5,                       // sprints in the PI; bars past it spill
+  "sizeSprints": { "S": 1, "M": 2, "L": 3, "XL": 4 },
+  "criticalPath": ["INIT-001", "INIT-009"],
+  "assumptions": ["Team capacity is not modelled: bars show size and dependency order only."],
+  "rows": [
+    {
+      "initiativeId": "INIT-001",
+      "team": "CBL-Account-Services",
+      "size": "L",                      // S | M | L | XL
+      "sizeSource": "size",             // size = from the data, points = estimated from story points, default = assumed
+      "sprints": 3,
+      "start": 1, "end": 3,             // 1-based sprints; end > piSprints means it spills past the PI
+      "spillsPastPi": false,
+      "waitsFor": [],                   // initiative ids that must finish first
+      "critical": true, "inCycle": false,
+      "targetedSprint": 2               // optional: the sprint number the roadmap asked for
+    }
+  ]
+}
+```
+
+The backend derives it in `backend/tools/schedule.py`: an initiative starts the sprint after the last
+initiative it waits for ends, and takes `SIZE_SPRINTS` sprints (default `S=1,M=2,L=3,XL=4`); `PI_SPRINTS`
+(default 5) sets the PI length. The source CSV may call the size `T-Shirt Sizing`, `size` or similar.
+
+### Comments
+
+Live feedback per initiative, from `GET /api/runs/{id}/comments?rev=N` (`rev` is what the client last
+saw; the answer is `{ "rev": N, "unchanged": true, "comments": [] }` when nothing moved):
+
+```jsonc
+{ "id": "c-1a2b3c4d5e", "initiativeId": "INIT-001", "type": "concern",   // concern | question | decision | action
+  "text": "…", "author": "Presenter", "authorId": "rte.presenter", "role": "RTE",   // set by the server from X-Demo-User
+  "createdAt": "2026-11-12T13:02:11+00:00", "resolved": false, "resolvedBy": null, "resolvedAt": null }
+```
+
+`POST /api/runs/{id}/comments` takes `{ "initiative_id", "type", "text" }` (1 to 1000 characters; at most 500 per run);
+`POST /api/runs/{id}/comments/{cid}/resolve` takes `{ "resolved": true|false }` (reviewers, or the author);
+`GET /api/runs/{id}/comments/export` downloads a CSV. They are stored in the run folder. A replayed file has no
+backend run, so its comments are kept in the browser (`localStorage`) and written into Export as `comments`.
+
 ### What the change types mean
 
 | `changeType` | Meaning | Typical cause |

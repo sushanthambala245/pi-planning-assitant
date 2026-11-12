@@ -12,10 +12,13 @@ import type {
   NotChecked,
   PathHop,
   Risk,
+  Schedule,
+  ScheduleRow,
   SequenceStep,
   Severity,
   SourceUsed,
   SystemItem,
+  TShirt,
   Verdict,
 } from '../types'
 
@@ -81,6 +84,42 @@ const dependency = (o: Obj): DependencyRow => ({
   status: o.status ? str(o.status) : undefined,
   inJira: typeof o.inJira === 'boolean' ? o.inJira : null,
 })
+
+const SIZES = ['S', 'M', 'L', 'XL'] as const
+
+function schedule(raw: unknown): Schedule | undefined {
+  if (!isObj(raw)) return undefined
+  const rows = objs(raw.rows)
+    .map((o): ScheduleRow => {
+      const start = Math.max(1, Math.round(num(o.start) ?? 1))
+      return {
+        initiativeId: str(o.initiativeId),
+        team: str(o.team),
+        size: oneOf<TShirt>(str(o.size).toUpperCase(), SIZES, 'S'),
+        sizeSource: oneOf(o.sizeSource, ['size', 'points', 'default'] as const, 'size'),
+        sprints: Math.max(1, Math.round(num(o.sprints) ?? 1)),
+        start,
+        end: Math.max(start, Math.round(num(o.end) ?? start)),
+        spillsPastPi: o.spillsPastPi === true,
+        waitsFor: strArr(o.waitsFor),
+        critical: o.critical === true,
+        inCycle: o.inCycle === true,
+        targetedSprint: num(o.targetedSprint),
+      }
+    })
+    .filter((r) => r.initiativeId)
+  if (!rows.length) return undefined
+  const sizeSprints: Record<string, number> = {}
+  for (const [k, v] of Object.entries(isObj(raw.sizeSprints) ? raw.sizeSprints : {})) if (typeof v === 'number') sizeSprints[k] = v
+  return {
+    pi: str(raw.pi),
+    piSprints: Math.max(1, Math.round(num(raw.piSprints) ?? 5)),
+    sizeSprints,
+    rows,
+    criticalPath: strArr(raw.criticalPath),
+    assumptions: strArr(raw.assumptions),
+  }
+}
 
 /** Turns loosely-shaped JSON into a well-formed Analysis; throws if nothing recognisable is present. */
 export function normalizeAnalysis(raw: unknown): Analysis {
@@ -201,6 +240,7 @@ export function normalizeAnalysis(raw: unknown): Analysis {
     steps,
     summary: summaryRaw.text ? { text: str(summaryRaw.text), method: str(summaryRaw.method, 'template') } : undefined,
     notChecked,
+    schedule: schedule(raw.schedule),
   }
 
   if (!agents.length && !findings.length && !nodes.length && !risks.length && !analysis.sequence.length) {
