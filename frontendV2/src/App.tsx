@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { api, isLoaded, toInitiative, toSource, type ReviewBody, type RunStatus } from './api/client'
+import { api, commentsCsvUrl, isLoaded, toInitiative, toSource, type ReviewBody, type RunStatus } from './api/client'
 import { HelpDrawer } from './components/HelpDrawer'
 import { ReviewPanel } from './components/ReviewPanel'
 import { TopBar } from './components/TopBar'
+import { useComments } from './hooks/useComments'
 import { normalizeAnalysis } from './lib/analysis'
 import { ingestFiles, notice } from './lib/ingest'
 import { IntakeScreen } from './screens/IntakeScreen'
@@ -70,6 +71,17 @@ export default function App() {
   const selectedRef = useRef<string[]>([])
   // Read by the poll loop, which must not restart when a review is sent.
   const pendingRef = useRef<'approve' | 'challenge' | null>(null)
+
+  // Live feedback per initiative: polled from the backend run, or kept in this browser for a replayed file.
+  const who = reviewers.find((r) => r.id === reviewerId)
+  const comments = useComments({
+    runId: fromBackend ? runId : null,
+    reviewerId: reviewerId || undefined,
+    localAuthor: { name: 'You', role: 'Local' },
+    localKey: analysis ? analysis.initiatives.map((i) => i.id).sort().join(',') || 'analysis' : 'none',
+    active: screen === 'results',
+  })
+  const postingAs = fromBackend && who ? `${who.name} (${who.role})` : 'you, on this device'
 
   const notify = useCallback((...next: Notice[]) => setNotices((prev) => [...next, ...prev].slice(0, 30)), [])
 
@@ -353,6 +365,7 @@ export default function App() {
       runId,
       initiatives: ids.size ? initiatives.filter((i) => ids.has(i.id)) : initiatives,
       flaggedRisks: flags,
+      comments: comments.comments,
       analysis,
     })
   }
@@ -363,6 +376,11 @@ export default function App() {
         <button className="btn btn-ghost btn-sm" onClick={exportAnalysis} title="Download the analysed initiatives, flagged risks and results as JSON (it can be uploaded again to replay)">
           <i className="ti ti-download" aria-hidden="true" /> Export
         </button>
+        {fromBackend && runId && comments.comments.length > 0 && (
+          <a className="btn btn-ghost btn-sm" href={commentsCsvUrl(runId)} download title="Download every comment on this run as a spreadsheet">
+            <i className="ti ti-message-down" aria-hidden="true" /> Comments
+          </a>
+        )}
         <button
           className="btn btn-ghost btn-sm"
           onClick={() => { setRun({ status: 'idle', current: 0 }); setScreen('intake') }}
@@ -445,7 +463,7 @@ export default function App() {
         {screen === 'results' && (
           <ResultsScreen
             analysis={analysis}
-            initiativeCount={analysedCount}
+            comments={{ ...comments, postingAs }}
             onViewAnalysis={() => setScreen('pipeline')}
             onBack={() => setScreen('intake')}
             flags={flags}

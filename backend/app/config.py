@@ -77,6 +77,10 @@ class Settings:
     # Entity resolution
     fuzzy_threshold: float = field(default_factory=lambda: _float("FUZZY_THRESHOLD", 0.86))
 
+    # Delivery timeline: sprints in a PI, and how many sprints each T-shirt size takes.
+    pi_sprints: int = field(default_factory=lambda: _int("PI_SPRINTS", 5))
+    size_sprints: str = field(default_factory=lambda: _env("SIZE_SPRINTS", "S=1,M=2,L=3,XL=4"))
+
     # DRI rule thresholds
     capacity_warn_pct: float = field(default_factory=lambda: _float("CAPACITY_WARN_PCT", 100.0))
     capacity_blocker_pct: float = field(default_factory=lambda: _float("CAPACITY_BLOCKER_PCT", 130.0))

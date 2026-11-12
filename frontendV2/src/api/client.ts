@@ -1,5 +1,5 @@
 import { classify } from '../lib/ingest'
-import type { Initiative, KnowledgeSource, Reviewer, ReviewState } from '../types'
+import type { Comment, CommentType, Initiative, KnowledgeSource, Reviewer, ReviewState } from '../types'
 
 // Thin client over the FastAPI backend (backend/app/main.py). URLs are relative: in dev and
 // preview, Vite forwards /api to http://localhost:8000 (vite.config.ts).
@@ -94,7 +94,24 @@ export const api = {
   review: (runId: string, reviewerId: string, body: ReviewBody) => call<unknown>(`${run(runId)}/review`, post(body, reviewerId)),
   flag: (runId: string, itemId: string, flagged: boolean, reviewerId?: string) =>
     call<{ flags: string[] }>(`${run(runId)}/flags`, post({ item_id: itemId, flagged }, reviewerId)).then((r) => r.flags),
+  /** Send the `rev` you last saw: the answer is `unchanged: true` (and no comments) when nothing moved. */
+  comments: (runId: string, rev?: number) =>
+    call<CommentsReply>(`${run(runId)}/comments${rev === undefined ? '' : `?rev=${rev}`}`),
+  /** Author and role come from the reviewer id (X-Demo-User), not from the body. */
+  addComment: (runId: string, body: { initiative_id: string; type: CommentType; text: string }, reviewerId?: string) =>
+    call<CommentsReply>(`${run(runId)}/comments`, post(body, reviewerId)),
+  resolveComment: (runId: string, commentId: string, resolved: boolean, reviewerId?: string) =>
+    call<CommentsReply>(`${run(runId)}/comments/${encodeURIComponent(commentId)}/resolve`, post({ resolved }, reviewerId)),
 }
+
+export interface CommentsReply {
+  rev: number
+  unchanged?: boolean
+  comments: Comment[]
+}
+
+/** All comments of a run as a spreadsheet-safe CSV. */
+export const commentsCsvUrl = (runId: string) => `/api${run(runId)}/comments/export`
 
 /** A file the run exported after approval (proposals CSV, sequence note, audit). */
 export const exportUrl = (runId: string, name: string) => `/api${run(runId)}/export/${encodeURIComponent(name)}`

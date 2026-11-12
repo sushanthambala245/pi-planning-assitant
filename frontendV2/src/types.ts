@@ -175,6 +175,52 @@ export interface SequenceStep {
   inCycle: boolean
 }
 
+export type TShirt = 'S' | 'M' | 'L' | 'XL'
+
+/** One initiative's place on the delivery timeline; sprints are numbered from 1. */
+export interface ScheduleRow {
+  initiativeId: string
+  team: string
+  size: TShirt
+  /** Where the size came from: the data, estimated from story points, or assumed (one sprint). */
+  sizeSource: 'size' | 'points' | 'default'
+  sprints: number
+  start: number
+  end: number
+  spillsPastPi: boolean
+  waitsFor: string[]
+  critical: boolean
+  inCycle: boolean
+  targetedSprint?: number
+}
+
+/** Delivery timeline derived from T-shirt sizes and the dependency order. */
+export interface Schedule {
+  pi: string
+  piSprints: number
+  sizeSprints: Record<string, number>
+  rows: ScheduleRow[]
+  criticalPath: string[]
+  assumptions: string[]
+}
+
+export type CommentType = 'concern' | 'question' | 'decision' | 'action'
+
+/** Live feedback on one initiative, captured during PI planning. */
+export interface Comment {
+  id: string
+  initiativeId: string
+  type: CommentType
+  text: string
+  author: string
+  authorId: string
+  role: string
+  createdAt: string
+  resolved: boolean
+  resolvedBy?: string | null
+  resolvedAt?: string | null
+}
+
 /** Result of an analysis run. Produced by the backend (or loaded from a JSON file). */
 export interface Analysis {
   agents: AgentRun[]
@@ -191,6 +237,8 @@ export interface Analysis {
   /** The executive summary paragraph, and whether the LLM or a template wrote it. */
   summary?: { text: string; method: string }
   notChecked: NotChecked[]
+  /** Absent in older files and while the run has not reached sequencing: the timeline falls back to steps. */
+  schedule?: Schedule
 }
 
 /** A backend run's review: decisions so far, reviewer constraints, files to download. */

@@ -65,8 +65,28 @@ New CSS classes added (existing classes unchanged):
 
 ---
 
+## Results: delivery timeline, simpler layout and live comments
+
+Backend (`backend/`)
+- `tools/schedule.py` (new): T-shirt sizes become sprint durations (`SIZE_SPRINTS`, default `S=1,M=2,L=3,XL=4`; `PI_SPRINTS`, default 5);
+  each initiative starts the sprint after the last initiative it waits for ends; cycles start together; spills past the PI and the critical path are marked.
+  Runs in the sequencing node and is returned as `schedule` by `GET /api/runs/{id}/analysis`. Capacity is not modelled.
+- S1 now carries `size`, `targeted_sprint`, `status` and `priority` (aliases for the Nov 6 sheet's `T-Shirt Sizing` and `target_pi-explicitly Q1/Q2..`).
+  A missing size falls back to story points, then to one sprint, and says so in `schedule.assumptions`.
+- `app/comments.py` (new) and `GET|POST /api/runs/{id}/comments`, `POST .../{cid}/resolve`, `GET .../comments/export`: per-initiative comments (concern, question, decision, action)
+  with a resolved flag, stored in the run folder, author and role from the server-side identity, `rev` polling, CSV export that neutralises spreadsheet formulas.
+- `agents/graph.py`: `Schedule` and `ScheduleRow` added to the checkpoint allow-list.
+- Tests: `tests/test_schedule.py`, `tests/test_comments.py`.
+
+Frontend (`frontendV2/`)
+- Results screen rebuilt around one sentence and status chips (`Headline.tsx`); the five stat cards, the recommended-order chips and the repeated "Before PI planning" text are gone (the detail opens from the chips).
+- View switcher Timeline | Graph | Dependencies | Risks; full-screen toggle (Esc leaves).
+- `TimelineView.tsx`: chevron bars per initiative across the PI's sprints, grouped by step, team or ART, critical path and spill markers, targeted-sprint boxes, links on selection.
+- `InitiativeDrawer.tsx` (Details | Comments), `CommentsPanel.tsx`, `hooks/useComments.ts` (polls every 5 s while the page is visible, backs off on errors; local copy for a replayed file).
+- `results.css` (new), Help and `DATA_FORMAT.md` updated. `StatRow.tsx` and `DecisionSummary.tsx` are no longer used by the Results screen.
+
 ## What is NOT changed
 
 - `frontend/` — original UI, completely untouched.
-- `backend/` — no backend changes included in this commit (kept local only).
+- `backend/` — the frontendV2 UX commit above made no backend change; the Results work above did.
 - `data/` — no data files changed.
