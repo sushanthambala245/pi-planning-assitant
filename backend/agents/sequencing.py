@@ -22,6 +22,7 @@ from context.snapshot import ContextSnapshot
 from tools.dep_classify import classify
 from tools.graph_tools import (ORDERING_STATUSES, build_initiative_graph, capacity_check, find_cycles,
                                sequence_steps)
+from tools.schedule import build_schedule, parse_size_sprints
 from tools.wording import DEP_ID, plural, reads_without_refs
 
 
@@ -117,10 +118,12 @@ def sequencing(state: AgentState, ctx: RunContext) -> dict:
                                                    "step, or did not read as a sentence without its dependency "
                                                    "ids; template kept"))
 
+    schedule = build_schedule(state.initiatives, g, ctx.settings.pi_sprints, parse_size_sprints(ctx.settings.size_sprints))
+
     order = " → ".join(" + ".join(titles.get(i, i) for i in s.initiative_ids) for s in steps)
     ctx.emit("finding", "sequencing", tag="sequence", text=f"Recommended order: {order}", initiative_ids=[],
              sub=f"{plural(len(cycles), 'cycle')} · {plural(len(state.constraints), 'reviewer constraint')}")
     over = [c for c in capacity if c.load_pct and c.load_pct > ctx.settings.capacity_warn_pct]
     if over:
         ctx.emit("note", "sequencing", text="Over capacity: " + ", ".join(f"{c.team} {c.load_pct:g}%" for c in over))
-    return {"sequence": steps, "cycles": cycles, "capacity": capacity, "warnings": warnings}
+    return {"sequence": steps, "cycles": cycles, "capacity": capacity, "schedule": schedule, "warnings": warnings}

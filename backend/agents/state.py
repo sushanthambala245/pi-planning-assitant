@@ -46,6 +46,10 @@ class Initiative(BaseModel):
     target_pi: str | None = None
     art: str | None = None
     estimate_points: float | None = None
+    size: str | None = None  # T-shirt size as written in the source (S, M, L, XL, ...)
+    targeted_sprint: str | None = None  # e.g. "PI-2026-06-Sprint-3"
+    status: str | None = None
+    priority: str | None = None
     origin: Literal["S1", "upload", "manual"] = "S1"
 
 
@@ -100,6 +104,32 @@ class CapacityLine(BaseModel):
     initiative_ids: list[str] = Field(default_factory=list)
 
 
+class ScheduleRow(BaseModel):
+    initiative_id: str
+    team: str = ""
+    size: str  # canonical: S, M, L or XL
+    size_source: Literal["size", "points", "default"]
+    sprints: int  # duration
+    start: int  # 1-based sprint in the run's timeline
+    end: int
+    spills_past_pi: bool = False
+    waits_for: list[str] = Field(default_factory=list)
+    critical: bool = False
+    in_cycle: bool = False
+    targeted_sprint: int | None = None
+
+
+class Schedule(BaseModel):
+    """A delivery timeline derived from T-shirt sizes and the verified dependency order."""
+
+    pi: str = ""
+    pi_sprints: int = 5
+    size_sprints: dict[str, int] = Field(default_factory=dict)
+    rows: list[ScheduleRow] = Field(default_factory=list)
+    critical_path: list[str] = Field(default_factory=list)
+    assumptions: list[str] = Field(default_factory=list)
+
+
 class Risk(BaseModel):
     id: str
     dri_code: str
@@ -146,6 +176,7 @@ class AgentState(BaseModel):
     cycles: list[list[str]] = Field(default_factory=list)
     sequence: list[SequenceStep] = Field(default_factory=list)
     capacity: list[CapacityLine] = Field(default_factory=list)
+    schedule: Schedule | None = None
     risks: list[Risk] = Field(default_factory=list)
     rule_coverage: dict[str, str] = Field(default_factory=dict)
     constraints: list[Constraint] = Field(default_factory=list)

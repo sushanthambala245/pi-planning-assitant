@@ -78,6 +78,10 @@ class ContextSnapshot:
                     target_pi=(r.get("target_pi") or None),
                     art=(r.get("art") or None),
                     estimate_points=None if pd.isna(est) else float(est),
+                    size=(r.get("size") or None),
+                    targeted_sprint=(r.get("targeted_sprint") or None),
+                    status=(r.get("status") or None),
+                    priority=(r.get("priority") or None),
                     origin="S1",
                 )
             )

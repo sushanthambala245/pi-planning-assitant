@@ -306,6 +306,18 @@ def _dependencies(state: AgentState, snap: ContextSnapshot, names: _Names) -> li
     return rows
 
 
+def _schedule(state: AgentState) -> dict | None:
+    s = state.schedule
+    if s is None:
+        return None
+    return {"pi": s.pi, "piSprints": s.pi_sprints, "sizeSprints": s.size_sprints, "criticalPath": s.critical_path,
+            "assumptions": s.assumptions,
+            "rows": [{"initiativeId": r.initiative_id, "team": r.team, "size": r.size, "sizeSource": r.size_source,
+                      "sprints": r.sprints, "start": r.start, "end": r.end, "spillsPastPi": r.spills_past_pi,
+                      "waitsFor": r.waits_for, "critical": r.critical, "inCycle": r.in_cycle,
+                      "targetedSprint": r.targeted_sprint} for r in s.rows]}
+
+
 def _sources_used(events: list[dict], snap: ContextSnapshot) -> list[dict]:
     read: Counter = Counter()
     units: dict[str, str] = {}
@@ -429,6 +441,8 @@ def build_analysis(run_id: str, status: str, error: str | None, state: AgentStat
                               "why": strip_dep_refs(s.why), "inCycle": s.in_cycle}
                              for s, text in zip(state.sequence, analysis["sequence"])]
         analysis["notChecked"] = _not_checked(state.rule_coverage)
+        if state.schedule:
+            analysis["schedule"] = _schedule(state)
         key = (state.ui.get("summary") or {}).get("key_risk") if state.ui else None
         if key or state.risks:
             analysis["keyRisk"] = key or rank_risks(state.risks)[0].title

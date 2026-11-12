@@ -61,6 +61,6 @@ def build_graph(checkpointer=None):
 def serializer() -> JsonPlusSerializer:
     """Allow-list exactly our state record types for checkpoint deserialisation."""
     models = ["AgentState", "Initiative", "SystemTouch", "Dependency", "EvidenceRef", "SequenceStep",
-              "CapacityLine", "Risk", "Constraint", "Approval"]
+              "CapacityLine", "Schedule", "ScheduleRow", "Risk", "Constraint", "Approval"]
     assert all(hasattr(state_models, m) for m in models)
     return JsonPlusSerializer(allowed_msgpack_modules=[("agents.state", m) for m in models])

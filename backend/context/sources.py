@@ -52,11 +52,15 @@ SOURCES: dict[str, SourceSpec] = {
             used_by="Initiative Analyser · Sequencing · Ask",
             key="initiative_id",
             required=("initiative_id", "title", "owning_team"),
-            optional=("description", "target_pi", "art", "estimate_points", "priority"),
+            optional=("description", "target_pi", "art", "estimate_points", "priority", "size", "targeted_sprint",
+                      "status"),
             types={"estimate_points": "float"},
             aliases={"id": "initiative_id", "name": "title", "initiative_name": "title", "team": "owning_team",
                      "team_id": "owning_team", "owner_team": "owning_team", "pi": "target_pi", "text": "description",
-                     "summary": "description", "story_points": "estimate_points"},
+                     "summary": "description", "story_points": "estimate_points",
+                     # The Nov 6 sheet: "target_pi-explicitly Q1/Q2.." and "T-Shirt Sizing".
+                     "target_pi_explicitly_q1_q2": "target_pi", "t_shirt_sizing": "size", "t_shirt_size": "size",
+                     "tshirt_size": "size", "tshirt_sizing": "size", "targeted_sprint_id": "targeted_sprint"},
             index_columns=("title", "description"),
         ),
         SourceSpec(

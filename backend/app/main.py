@@ -17,13 +17,14 @@ from typing import Literal
 import anyio
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 
 from agents.ask import ask as ask_agent
 from agents.runtime import now_iso
 from agents.state import Approval, Constraint, Initiative
 from app.analysis_view import build_analysis
+from app.comments import CommentIn, CommentLimitReached, CommentStore, ResolveIn
 from app.config import get_settings
 from app.identity import allowed, identity_from_request, roster_view
 from app.runs import TERMINAL, RunHandle, RunManager
@@ -44,6 +45,7 @@ class AppState:
         self.snapshot: ContextSnapshot = build_snapshot(self.settings)
         self.session_initiatives: dict[str, Initiative] = {}
         self.runs = RunManager(self.settings)
+        self.comments = CommentStore(self.settings.runs_dir)
         self.lock = threading.Lock()
 
     def reload(self) -> None:
@@ -206,6 +208,8 @@ async def upload_initiatives(file: UploadFile = File(...)) -> dict:
             ini = Initiative(id=iid, title=r["title"], description=r.get("description", ""),
                              owning_team=S.snapshot.resolver.team(r["owning_team"]).canonical or r["owning_team"],
                              target_pi=r.get("target_pi") or None, art=r.get("art") or None,
+                             size=r.get("size") or None, targeted_sprint=r.get("targeted_sprint") or None,
+                             status=r.get("status") or None, priority=r.get("priority") or None,
                              estimate_points=None if est != est or est is None else float(est), origin="upload")
             S.session_initiatives[iid] = ini
             S.snapshot.resolver.add_initiative(iid, ini.title)
@@ -316,6 +320,62 @@ def flag_item(run_id: str, body: FlagRequest, request: Request) -> dict:
         flags.remove(body.item_id)
     S.runs.persist_flags(h)
     return {"flags": flags}
+
+
+def _run_initiatives(run_id: str) -> dict[str, str]:
+    """Initiative id -> title for a run that is active or saved on disk; 404 if there is no such run."""
+    h = S.runs.runs.get(run_id)
+    if h is not None:
+        state = S.runs.state(h)
+        return {i.id: i.title for i in state.initiatives} if state else {}
+    saved = S.runs.saved_view(run_id)
+    if saved is None:
+        raise HTTPException(404, f"run {run_id} not found")
+    return {i["id"]: i["title"] for i in (saved.get("state") or {}).get("initiatives", [])}
+
+
+@app.get("/api/runs/{run_id}/comments")
+def list_comments(run_id: str, rev: int | None = None) -> dict:
+    """All comments of a run. Send the `rev` you last saw to get `unchanged: true` when nothing moved."""
+    _run_initiatives(run_id)
+    return S.comments.get(run_id, rev)
+
+
+@app.post("/api/runs/{run_id}/comments")
+def add_comment(run_id: str, body: CommentIn, request: Request) -> dict:
+    who = identity_from_request(request)
+    if not allowed(who, "comment"):
+        raise HTTPException(403, "not allowed to comment")
+    if body.initiative_id not in _run_initiatives(run_id):
+        raise HTTPException(400, "initiative is not part of this run")
+    if not body.text.strip():
+        raise HTTPException(400, "comment is empty")
+    try:
+        comment = S.comments.add(run_id, body.initiative_id, body.type, body.text, who.id, who.name, who.role)
+    except CommentLimitReached:
+        raise HTTPException(409, "this run has reached its comment limit")
+    return {"comment": comment, **S.comments.get(run_id)}
+
+
+@app.post("/api/runs/{run_id}/comments/{comment_id}/resolve")
+def resolve_comment(run_id: str, comment_id: str, body: ResolveIn, request: Request) -> dict:
+    who = identity_from_request(request)
+    _run_initiatives(run_id)
+    existing = S.comments.find(run_id, comment_id)
+    if existing is None:
+        raise HTTPException(404, "no such comment")
+    # Reviewers (RTE, EM, Architect) resolve anything; anyone else only their own comments.
+    if not (allowed(who, "approve") or existing["authorId"] == who.id):
+        raise HTTPException(403, "only the author or a reviewer can resolve a comment")
+    S.comments.resolve(run_id, comment_id, body.resolved, who.name)
+    return S.comments.get(run_id)
+
+
+@app.get("/api/runs/{run_id}/comments/export")
+def export_comments(run_id: str) -> Response:
+    titles = _run_initiatives(run_id)
+    return Response(S.comments.to_csv(run_id, titles), media_type="text/csv",
+                    headers={"Content-Disposition": f'attachment; filename="{run_id}-comments.csv"'})
 
 
 @app.post("/api/runs/{run_id}/ask")
