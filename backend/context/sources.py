@@ -24,12 +24,16 @@ class SourceSpec:
     kind: Kind
     used_by: str
     key: str | None = None
-    # Other names the file may have in the data package (e.g. a re-issued "_updated" export).
+    # Other names the file may have in the data package (e.g. a re-issued "_updated" export). Glob
+    # patterns are allowed ("initiatives_updated*.csv"): the newest matching file wins.
     alt_filenames: tuple[str, ...] = ()
     required: tuple[str, ...] = ()
     optional: tuple[str, ...] = ()
     types: dict[str, ColType] = field(default_factory=dict)
     aliases: dict[str, str] = field(default_factory=dict)
+    # Header prefixes mapped onto a column when no exact alias matched, for headers that carry
+    # their own explanation ("target_pi-explicitly Q1/Q2.." normalises to target_pi_explicitly_q1_q2).
+    alias_prefixes: dict[str, str] = field(default_factory=dict)
     # Columns chunked into the retrieval index. Label / answer-key columns are never indexed.
     index_columns: tuple[str, ...] = ()
     label_columns: tuple[str, ...] = ()
@@ -49,15 +53,27 @@ SOURCES: dict[str, SourceSpec] = {
             title="Roadmap initiatives",
             stands_in_for="Jira + Confluence initiative text",
             kind="csv",
-            used_by="Initiative Analyser · Sequencing · Ask",
+            used_by="Initiative Analyser · Discovery · Sequencing · Ask",
             key="initiative_id",
+            alt_filenames=("initiatives_updated*.csv", "initiatives_v*.csv"),
             required=("initiative_id", "title", "owning_team"),
-            optional=("description", "target_pi", "art", "estimate_points", "priority"),
+            # status gates the run (only READY_STATUSES are analysed); dependency is the user-defined
+            # "Upstream: A, B; Downstream: C" list; target_pi is the user-defined quarter (Q1, Q2 ...);
+            # tshirt_size (S / M / L / XL) is the size the schedule weighs against team capacity.
+            # estimate_points and targeted_sprint are read when an older export still has them.
+            optional=("description", "target_pi", "art", "tshirt_size", "estimate_points", "priority", "status",
+                      "initiative_type", "business_outcome", "targeted_sprint", "dependency"),
             types={"estimate_points": "float"},
             aliases={"id": "initiative_id", "name": "title", "initiative_name": "title", "team": "owning_team",
-                     "team_id": "owning_team", "owner_team": "owning_team", "pi": "target_pi", "text": "description",
-                     "summary": "description", "story_points": "estimate_points"},
-            index_columns=("title", "description"),
+                     "team_id": "owning_team", "owner_team": "owning_team", "pi": "target_pi",
+                     "target_quarter": "target_pi", "quarter": "target_pi", "text": "description",
+                     "summary": "description", "story_points": "estimate_points", "type": "initiative_type",
+                     "sprint": "targeted_sprint", "target_sprint": "targeted_sprint", "dependencies": "dependency",
+                     "outcome": "business_outcome", "t_shirt_sizing": "tshirt_size", "t_shirt_size": "tshirt_size",
+                     "tshirt": "tshirt_size", "size": "tshirt_size", "tshirt_sizing": "tshirt_size"},
+            alias_prefixes={"target_pi": "target_pi", "target_quarter": "target_pi", "t_shirt": "tshirt_size",
+                            "tshirt": "tshirt_size"},
+            index_columns=("title", "description", "dependency"),
         ),
         SourceSpec(
             id="S2",
@@ -83,7 +99,7 @@ SOURCES: dict[str, SourceSpec] = {
             kind="csv",
             used_by="Discovery ① · Verifier · Evals",
             key="statement_id",
-            alt_filenames=("dependency_statements_updated.csv",),
+            alt_filenames=("dependency_statements_updated*.csv",),
             required=("statement_id", "text"),
             optional=("source_ref", "channel", "from_entity", "to_entity", "is_dependency", "dependency_type",
                       "dependency_impact", "upstream_initiative_id", "upstream_system", "dependency_eta_date"),
@@ -108,12 +124,17 @@ SOURCES: dict[str, SourceSpec] = {
             alt_filenames=("github_repos_version_aligned.csv",),
             required=("repo", "owner_team"),
             # repo_id: other sources may refer to a repo by id; the resolver maps ids onto names.
-            optional=("repo_id", "language", "internal_dependencies", "service", "status"),
-            types={"internal_dependencies": "list"},
+            # repo_type (service / api / contracts / shared_library) says whether a code link lands on an
+            # interface; shared_libraries finds the teams a shared-library change ripples to.
+            optional=("repo_id", "language", "internal_dependencies", "service", "status", "repo_type", "description",
+                      "shared_libraries", "manifest", "version", "last_commit"),
+            types={"internal_dependencies": "list", "shared_libraries": "list"},
             aliases={"repo_name": "repo", "name": "repo", "owner": "owner_team", "team": "owner_team",
                      "team_id": "owner_team", "primary_language": "language", "lifecycle_status": "status",
                      "declared_internal_deps": "internal_dependencies", "dependencies": "internal_dependencies",
-                     "deps": "internal_dependencies", "declared_internal_repo_ids": "internal_dependencies"},
+                     "deps": "internal_dependencies", "declared_internal_repo_ids": "internal_dependencies",
+                     "declared_shared_libraries": "shared_libraries", "libraries": "shared_libraries",
+                     "type": "repo_type", "dependency_manifest_path": "manifest", "last_commit_at": "last_commit"},
         ),
         SourceSpec(
             id="S5",
@@ -122,12 +143,15 @@ SOURCES: dict[str, SourceSpec] = {
             stands_in_for="PMO / Jira capacity",
             kind="csv",
             used_by="Sequencing · Risk (X-003)",
-            required=("team", "pi", "capacity_points"),
-            optional=("committed_points", "eng_weeks"),
+            alt_filenames=("team_capacity_updated*.csv", "team_capacity_v*.csv"),
+            # One row per team is its capacity in every quarter (PI); add pi for a quarter of its own,
+            # or sprint for sprint-by-sprint velocity.
+            required=("team", "capacity_points"),
+            optional=("pi", "sprint", "committed_points", "eng_weeks"),
             types={"capacity_points": "float", "committed_points": "float", "eng_weeks": "float"},
             aliases={"team_id": "team", "target_pi": "pi", "capacity": "capacity_points",
                      "story_points": "capacity_points", "available_story_points": "capacity_points",
-                     "committed": "committed_points", "demand_points": "committed_points"},
+                     "committed": "committed_points", "demand_points": "committed_points", "sprint_id": "sprint"},
         ),
         SourceSpec(
             id="S6",
@@ -138,7 +162,7 @@ SOURCES: dict[str, SourceSpec] = {
             used_by="Analyser · Sequencing · Ask",
             key="team",
             required=("team",),
-            optional=("art", "em", "po", "rte"),
+            optional=("team_name", "art", "team_status", "em", "po", "rte"),
             # team_id before team_name: every other source joins on the id.
             aliases={"team_id": "team", "team_name": "team", "engineering_manager": "em", "product_owner": "po"},
         ),
@@ -148,16 +172,16 @@ SOURCES: dict[str, SourceSpec] = {
             title="Service ownership map",
             stands_in_for="ServiceNow ownership records",
             kind="csv",
-            used_by="Discovery ③ · Risk (X-002)",
+            used_by="Analyser · Discovery ④ · Risk (X-002, X-004, X-005)",
             key="service",
             required=("service",),
-            # service_type (service / API / dataset ...) splits APIs from services in the UI;
-            # contract_status (Approved / Draft / Missing) feeds the change classification.
-            optional=("owner_team", "capability", "api", "dataset", "status", "repo", "description", "service_type",
-                      "contract_status"),
-            types={"repo": "list"},
+            # A lookup per named system: its owning team, its kind (service / API / dataset ...), whether
+            # it is being retired (lifecycle) and whether its interface contract is approved. A blank
+            # owner means "no owner" (DRI-X-002). The related_*_initiative_ids columns are not read:
+            # they would hand the agents the answer instead of letting them find the dependencies.
+            optional=("owner_team", "service_type", "ownership_status", "status", "contract_status"),
             aliases={"service_name": "service", "owner": "owner_team", "team": "owner_team", "owning_team": "owner_team",
-                     "owning_team_id": "owner_team", "lifecycle_status": "status", "related_repo_ids": "repo",
+                     "owning_team_id": "owner_team", "lifecycle_status": "status",
                      "interface_contract_status": "contract_status"},
         ),
         SourceSpec(
@@ -253,3 +277,8 @@ SOURCES: dict[str, SourceSpec] = {
 
 # Sources whose text goes into the retrieval index.
 INDEXED_SOURCES = ("S1", "S2", "S3", "M1", "M3")
+
+# The knowledge base the planning agents use by default (ACTIVE_SOURCES overrides it): initiatives,
+# GitHub repositories, team capacity and the team directory, plus the ownership map as a lookup of
+# who owns each named system. The other sources are reported as switched off.
+KNOWLEDGE_BASE = ("S1", "S4", "S5", "S6", "S7")

@@ -29,6 +29,20 @@ def _float(name: str, default: float) -> float:
     return float(_env(name, str(default)))
 
 
+def _list(name: str, default: str) -> tuple[str, ...]:
+    return tuple(x.strip() for x in _env(name, default).split(",") if x.strip())
+
+
+def _pairs(name: str, default: str) -> tuple[tuple[str, float], ...]:
+    """"S=5,M=8" -> (("S", 5.0), ("M", 8.0)), in the order written."""
+    out = []
+    for part in _env(name, default).split(","):
+        k, sep, v = part.partition("=")
+        if sep and k.strip() and v.strip():
+            out.append((k.strip().upper(), float(v)))
+    return tuple(out)
+
+
 def _path(name: str, default: Path) -> Path:
     raw = os.getenv(name)
     if not raw:
@@ -47,6 +61,28 @@ class Settings:
         )
     )
 
+    # The knowledge base: source ids the agents may read (context/sources.py KNOWLEDGE_BASE). The
+    # rest are reported as switched off. "all" turns every source on.
+    active_sources: tuple[str, ...] | None = field(
+        default_factory=lambda: None if _env("ACTIVE_SOURCES", "").lower() == "all"
+        else _list("ACTIVE_SOURCES", "S1,S4,S5,S6,S7"))
+    # S1 statuses that are ready to plan. Anything else (Proposed, In Discovery) is left out of a run.
+    ready_statuses: tuple[str, ...] = field(default_factory=lambda: _list("READY_STATUSES", "Ready for PI Planning"))
+
+    # Planning (tools/planning.py). An initiative's T-shirt size (S1) is worth these story points, the
+    # unit of team capacity (S5). The default is the common Fibonacci scale for T-shirt sizes.
+    tshirt_points: tuple[tuple[str, float], ...] = field(
+        default_factory=lambda: _pairs("TSHIRT_POINTS", "XS=3,S=5,M=8,L=13,XL=21,XXL=34"))
+    # The size assumed for an initiative with no size, so it still takes capacity (and says so).
+    default_size: str = field(default_factory=lambda: _env("DEFAULT_SIZE", "M").upper())
+    # Sprints in a quarter (one PI per quarter) when the data has no sprint-level rows.
+    sprints_per_pi: int = field(default_factory=lambda: _int("SPRINTS_PER_PI", 5))
+    # Quarters the decision dashboard and the calendar always show (the last bucket is "Later").
+    plan_quarters: int = field(default_factory=lambda: _int("PLAN_QUARTERS", 4))
+    # A team's velocity tier by its capacity per quarter: up to 24 points is S, 32 M, 40 L, more XL.
+    velocity_tiers: tuple[tuple[str, float], ...] = field(
+        default_factory=lambda: _pairs("VELOCITY_TIERS", "S=24,M=32,L=40"))
+
     # LLM adapter
     llm_provider: str = field(default_factory=lambda: _env("LLM_PROVIDER", "anthropic"))  # anthropic | none
     llm_model: str = field(default_factory=lambda: _env("LLM_MODEL", "claude-sonnet-5-5"))
@@ -57,10 +93,11 @@ class Settings:
     llm_timeout_s: float = field(default_factory=lambda: _float("LLM_TIMEOUT_S", 120.0))
 
     # Budgets (considerations §4.1): exit behaviour is "continue without the LLM".
-    pipeline_max_model_calls: int = field(default_factory=lambda: _int("PIPELINE_MAX_MODEL_CALLS", 60))
+    pipeline_max_model_calls: int = field(default_factory=lambda: _int("PIPELINE_MAX_MODEL_CALLS", 90))
     ask_max_model_calls: int = field(default_factory=lambda: _int("ASK_MAX_MODEL_CALLS", 6))
     ask_max_calls_per_tool: int = field(default_factory=lambda: _int("ASK_MAX_CALLS_PER_TOOL", 4))
-    max_initiatives_per_run: int = field(default_factory=lambda: _int("MAX_INITIATIVES_PER_RUN", 15))
+    # High enough for every ready initiative of a PI: hidden dependencies only show across the whole set.
+    max_initiatives_per_run: int = field(default_factory=lambda: _int("MAX_INITIATIVES_PER_RUN", 60))
     # Rows accepted from one uploaded initiatives file; the rest are skipped and reported.
     max_upload_initiatives: int = field(default_factory=lambda: _int("MAX_UPLOAD_INITIATIVES", 100))
 

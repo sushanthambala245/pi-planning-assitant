@@ -10,11 +10,19 @@ from collections import defaultdict
 
 import networkx as nx
 
-from agents.state import CapacityLine, Constraint, Dependency, Initiative, Risk, SystemTouch
-from context.resolver import norm
+from agents.state import Constraint, Dependency, Initiative, Risk, SystemTouch
 from context.snapshot import ContextSnapshot
 
 ORDERING_STATUSES = ("verified", "low_confidence")
+# Kinds whose directed links change the order of the work. Code and shared-library links are
+# directional but soft: they say who should re-test or adapt after whom, not who must wait.
+ORDERING_KINDS = ("declared", "explicit", "ownership", "constraint")
+
+
+def orders(d: Dependency) -> bool:
+    """True if the link puts its target before its dependent in the plan."""
+    return (d.to_kind == "initiative" and d.directed and d.kind in ORDERING_KINDS
+            and d.status in ORDERING_STATUSES)
 
 
 def build_initiative_graph(initiatives: list[Initiative], deps: list[Dependency],
@@ -24,7 +32,7 @@ def build_initiative_graph(initiatives: list[Initiative], deps: list[Dependency]
     for i in initiatives:
         g.add_node(i.id, title=i.title, team=i.owning_team)
     for d in deps:
-        if d.to_kind != "initiative" or not d.directed or d.status not in ORDERING_STATUSES:
+        if not orders(d):
             continue
         if d.from_id not in ids or d.to_id not in ids or d.from_id == d.to_id:
             continue
@@ -58,52 +66,6 @@ def sequence_steps(g: nx.DiGraph) -> list[dict]:
         steps.append({"step": n, "initiative_ids": members, "chain": chain, "in_cycle": in_cycle,
                       "constrained": constrained})
     return steps
-
-
-def capacity_check(snapshot: ContextSnapshot, initiatives: list[Initiative]) -> list[CapacityLine]:
-    """Load per owning team for each initiative's target PI.
-
-    load = (committed_points from S5 if present, else 0) + selected demand, over capacity.
-    Selected demand is each initiative's estimate (S1 estimate_points, else the sum of its
-    epics' story_points). The formula is stored on every line so the number can be checked.
-    """
-    demand: dict[tuple[str, str | None], list[Initiative]] = defaultdict(list)
-    for ini in initiatives:
-        if ini.owning_team:
-            demand[(ini.owning_team, ini.target_pi)].append(ini)
-
-    lines = []
-    for (team, pi), inis in sorted(demand.items(), key=lambda kv: (kv[0][0], kv[0][1] or "")):
-        sel = 0.0
-        for ini in inis:
-            if ini.estimate_points is not None:
-                sel += ini.estimate_points
-            else:
-                epics = snapshot.epics_for(ini.id)
-                if not epics.empty and "story_points" in epics.columns:
-                    sel += float(epics["story_points"].fillna(0).sum())
-        rows = snapshot.capacity_rows(team)
-        if pi is not None and not rows.empty:
-            rows = rows[rows["pi"].map(norm) == norm(pi)]
-        cap = committed = None
-        if not rows.empty:
-            cap = float(rows["capacity_points"].fillna(0).sum())
-            if "committed_points" in rows.columns and rows["committed_points"].notna().any():
-                committed = float(rows["committed_points"].fillna(0).sum())
-        load = None
-        if cap:
-            load = round(100 * ((committed or 0.0) + sel) / cap, 1)
-        if not cap:
-            formula = "no capacity row in S5 for this team and PI"
-        elif committed is None:
-            formula = (f"{sel:g} selected / {cap:g} capacity; existing commitments are not in S5, so the real "
-                       "load is higher")
-        else:
-            formula = f"({committed:g} committed + {sel:g} selected) / {cap:g} capacity"
-        lines.append(CapacityLine(team=team, pi=pi, capacity_points=cap, committed_points=committed,
-                                  selected_demand_points=sel, load_pct=load, formula=formula,
-                                  initiative_ids=[i.id for i in inis]))
-    return lines
 
 
 def to_cytoscape(initiatives: list[Initiative], deps: list[Dependency], systems: list[SystemTouch],

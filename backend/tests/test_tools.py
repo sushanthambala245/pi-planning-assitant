@@ -7,7 +7,7 @@ from app.config import Settings
 from tools import guardrails as g
 from tools.citations import audit_answer, quote_in
 from tools.dri_rules import Facts, _history, has_blockers
-from tools.graph_tools import build_initiative_graph, capacity_check, find_cycles, sequence_steps
+from tools.graph_tools import build_initiative_graph, find_cycles, sequence_steps
 from tools.wording import plural, reads_without_refs, strip_dep_refs
 
 
@@ -105,13 +105,6 @@ def test_history_note_does_not_read_as_never_blocked_when_blockers_are_unmapped(
     assert risk.history_note == ("T delivered under 80% of its commitment in 0 of 3 past PIs; mid-PI blockers were "
                                  "recorded in 2 of 3 (context only, not used for severity)")
     assert risk.severity == "warning"  # context only: the severity rule is unchanged
-
-
-def test_capacity_without_commitments_says_the_load_is_a_floor():
-    snap = _Snapshot(s5=[{"team": "T", "pi": "PI-1", "capacity_points": 100.0, "committed_points": None}])
-    line, = capacity_check(snap, [Initiative(id="I", title="I", owning_team="T", target_pi="PI-1", estimate_points=15)])
-    assert line.load_pct == 15.0 and line.committed_points is None
-    assert "existing commitments are not in S5" in line.formula
 
 
 def test_dep_ids_are_removed_and_text_that_needs_them_is_caught():

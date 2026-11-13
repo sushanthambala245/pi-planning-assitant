@@ -1,7 +1,7 @@
 """The supervisor: a LangGraph state machine over AgentState.
 
 The graph owns the order of steps; agents decide inside their node (considerations
-§4.5). Routing is deterministic code, not a model: fan-out to three discovery tools,
+§4.5). Routing is deterministic code, not a model: fan-out to four discovery tools,
 a critic loop with at most MAX_REQUERY_ROUNDS re-queries, and a human gate that either
 approves (export) or adds a constraint and re-runs sequencing and risk.
 """
@@ -13,7 +13,7 @@ from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.graph import END, START, StateGraph
 
 from agents.analyser import analyse
-from agents.discovery import code_deps, explicit_deps, ownership_deps
+from agents.discovery import code_deps, declared_deps, explicit_deps, ownership_deps
 from agents.review import export, human_gate, load_context, route_after_review
 from agents.risk import risk
 from agents.sequencing import sequencing
@@ -22,14 +22,16 @@ from agents.state import AgentState
 from agents.verifier import merge, requery, route_after_verify, verify
 from agents.visualisation import visualise
 
-PIPELINE_NODES = ["load_context", "analyser", "explicit_deps", "code_deps", "ownership_deps", "merge", "verify",
-                  "requery", "sequencing", "risk", "visualisation", "human_gate", "export"]
+PIPELINE_NODES = ["load_context", "analyser", "declared_deps", "explicit_deps", "code_deps", "ownership_deps", "merge",
+                  "verify", "requery", "sequencing", "risk", "visualisation", "human_gate", "export"]
+DISCOVERY = ("declared_deps", "explicit_deps", "code_deps", "ownership_deps")
 
 
 def build_graph(checkpointer=None):
     g = StateGraph(AgentState)
     g.add_node("load_context", load_context)
     g.add_node("analyser", analyse)
+    g.add_node("declared_deps", declared_deps)
     g.add_node("explicit_deps", explicit_deps)
     g.add_node("code_deps", code_deps)
     g.add_node("ownership_deps", ownership_deps)
@@ -44,9 +46,9 @@ def build_graph(checkpointer=None):
 
     g.add_edge(START, "load_context")
     g.add_edge("load_context", "analyser")
-    for tool in ("explicit_deps", "code_deps", "ownership_deps"):  # parallel fan-out
+    for tool in DISCOVERY:  # parallel fan-out
         g.add_edge("analyser", tool)
-    g.add_edge(["explicit_deps", "code_deps", "ownership_deps"], "merge")  # join
+    g.add_edge(list(DISCOVERY), "merge")  # join
     g.add_edge("merge", "verify")
     g.add_conditional_edges("verify", route_after_verify, {"requery": "requery", "sequencing": "sequencing"})
     g.add_edge("requery", "verify")
@@ -61,6 +63,6 @@ def build_graph(checkpointer=None):
 def serializer() -> JsonPlusSerializer:
     """Allow-list exactly our state record types for checkpoint deserialisation."""
     models = ["AgentState", "Initiative", "SystemTouch", "Dependency", "EvidenceRef", "SequenceStep",
-              "CapacityLine", "Risk", "Constraint", "Approval"]
+              "CapacityLine", "Risk", "Constraint", "Approval", "PlannerInput", "ScheduleItem", "PlanConflict"]
     assert all(hasattr(state_models, m) for m in models)
     return JsonPlusSerializer(allowed_msgpack_modules=[("agents.state", m) for m in models])

@@ -4,7 +4,7 @@ import type { Analysis, DependencyRow, Finding } from '../types'
 import type { AgentWithState } from './AgentPipeline'
 import { FindingRow } from './FindingRow'
 
-const stateText = { done: 'Complete', active: 'Running…', wait: 'Not started yet' } as const
+const stateText = { done: 'Complete', active: 'Running…', wait: 'Not started yet', failed: 'Failed: the run stopped here' } as const
 const FIRST = 8
 
 function List({ label, items, icon }: { label: string; items: string[]; icon: string }) {
@@ -39,7 +39,7 @@ export function AgentDetail({ agent, findings, analysis, depsByKey, labelOf }: P
     <div className="agent-detail">
       <div className="agent-detail-head">
         <div className={`agent-circle small ${agent.state}`}>
-          <i className={`ti ${agent.state === 'done' ? 'ti-check' : agent.state === 'active' ? 'ti-loader-2' : agent.icon}`} aria-hidden="true" />
+          <i className={`ti ${agent.state === 'done' ? 'ti-check' : agent.state === 'active' ? 'ti-loader-2' : agent.state === 'failed' ? 'ti-alert-triangle' : agent.icon}`} aria-hidden="true" />
         </div>
         <div>
           <div className="agent-detail-name">{agent.name}</div>

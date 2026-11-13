@@ -77,6 +77,9 @@ def explicit_dependencies(resolver: EntityResolver, chunks: list[Chunk], focus_i
                     iid = resolver.initiative(title).canonical
                     if iid and iid != focus_id:
                         targets.append(("initiative", iid))
+                for iid in resolver.initiative_id_mentions(tail):  # "blocked on INIT-005" in a planner note
+                    if iid != focus_id and ("initiative", iid) not in targets:
+                        targets.append(("initiative", iid))
                 targets += [("service", s) for s, _ in resolver.services.mentions(tail)]
                 targets += [("team", t) for t, _ in resolver.teams.mentions(tail) if t != focus_team]
                 for kind, target in targets:

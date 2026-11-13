@@ -7,51 +7,55 @@ const screenInfo: Record<Screen, { title: string; icon: string; body: string }> 
   intake: {
     title: '1 · Intake',
     icon: 'ti-upload',
-    body: 'Load the initiatives you want to plan and the knowledge sources the AI should reason against. Search or filter the list, then tick the initiatives to analyse: one analysis takes up to 15, and one uploaded file adds up to 100.',
+    body: 'The initiatives and the knowledge base the agents reason against: initiatives, GitHub repositories, team directory and team capacity, plus the service ownership map as a lookup of who owns each system. Only initiatives that are Ready for PI Planning can be analysed (In Discovery and Proposed are shown for reference). Tick them all: hidden dependencies only show across the whole set. Hover any chip, source or number for what it means.',
   },
   pipeline: {
     title: '2 · Analysis',
     icon: 'ti-topology-star-3',
-    body: 'Summary shows one card per initiative: the systems it touches (APIs apart from services, with their owning teams), how many of its dependencies need a change, its risks and its step in the sequence. Findings by initiative lists every finding grouped under its initiative: hover one for a preview, double-click it to keep the details open.',
+    body: 'The agents at work, in collapsible sections. Agent workflow: click an agent for what it read, found and decided. By initiative: one card per initiative, grouped by release train, with the systems it touches, what it needs from other teams and its risks. All findings: every finding, filterable by kind.',
   },
   results: {
     title: '3 · Results',
     icon: 'ti-chart-dots',
-    body: 'Start with the Decision summary: the recommended order, a short summary, and what to do before PI planning (links to record in Jira, risks to resolve, links to confirm, checks that did not run). Below it, dependencies are sorted by what they ask of people: a code change, a flow / integration change, regression testing, or nothing. The Teams tab lists who to talk to and what each team is asked for. Stated means written down in Jira, Confluence or Slack; inferred means found in code or the ownership map; confirmed means both. Click a node to see why it is in the graph, or a risk to see why it was flagged.',
+    body: 'At a glance gives the three use cases in numbers and what to resolve before PI planning; click a tile or an item to jump to its section. 1 · Declared: the dependencies the teams wrote down and the target-quarter conflicts. 2 · Hidden: the ones nobody declared, grouped by what they do to the plan; Keep or Dismiss each one and add a note. 3 · Recommended sequence: by quarter at each team’s velocity; open a row for the reasons, to change its size or add a note. Then team capacity, risks and the graph. Rerun with updates sends your input back to the agents.',
+  },
+  dashboard: {
+    title: '4 · Decisions',
+    icon: 'ti-layout-kanban',
+    body: 'Place each initiative in a quarter bucket (Q1–Q4, or Later): drag the card or use its Move to list. Cards start where the recommended plan puts them (or where the teams targeted them). Every placement is checked as you go: a dependency out of order, a quarter too tight for a provider and then its consumer, a team over capacity. Each issue has a one-click fix. Export the decisions as CSV, or rerun so the agents schedule against them.',
   },
 }
 
 const buttons: { screen: Screen | 'all'; icon: string; name: string; what: string }[] = [
-  { screen: 'all', icon: 'ti-circle-number-1', name: 'Step tabs (Intake · Analysis · Results)', what: 'Jump between screens. A tab is greyed out until it has something to show.' },
-  { screen: 'all', icon: 'ti-palette', name: 'Colour theme', what: 'Switch the colour palette. Your choice is remembered in this browser.' },
+  { screen: 'all', icon: 'ti-layout-sidebar-left-collapse', name: 'Left pane', what: 'Jump to another screen or to a section of this one. Collapse it to a strip of icons; your choice is remembered.' },
+  { screen: 'all', icon: 'ti-circle-number-1', name: 'Step tabs (Intake · Analysis · Results · Decisions)', what: 'Move between the four screens. A tab is greyed out until it has something to show.' },
+  { screen: 'all', icon: 'ti-chevron-down', name: 'Section headers', what: 'Click a header to collapse or expand that section. The (i) next to it explains the section in depth.' },
+  { screen: 'all', icon: 'ti-info-circle', name: 'Tooltips', what: 'Hover (or focus with Tab) any number, chip or badge for how it is worked out and where the data comes from.' },
+  { screen: 'all', icon: 'ti-palette', name: 'Colour theme', what: 'Switch the palette: Accenture (default), Accenture dark and others. Remembered in this browser.' },
   { screen: 'all', icon: 'ti-help', name: 'Help', what: 'Opens this guide.' },
+  { screen: 'intake', icon: 'ti-circle-check', name: 'Ready · Proposed · In Discovery', what: 'Filter the list by status. Only Ready for PI Planning initiatives can be ticked and analysed.' },
+  { screen: 'intake', icon: 'ti-search', name: 'Search · ART · team · quarter filters', what: 'Narrow the list. The count shows how many match and how many ticked ones are hidden.' },
+  { screen: 'intake', icon: 'ti-square-check', name: 'Tick boxes · Select shown · Select all ready', what: 'Choose the initiatives to analyse, up to the limit shown.' },
   { screen: 'intake', icon: 'ti-upload', name: 'Upload area', what: 'Click or drop files: initiatives, knowledge-source CSVs, an analysis JSON, or a ZIP of them.' },
-  { screen: 'intake', icon: 'ti-plus', name: 'Add initiative', what: 'Type a title and description to add one initiative manually.' },
-  { screen: 'intake', icon: 'ti-search', name: 'Search · team · PI filters', what: 'Narrow the list. The count shows how many match and how many ticked ones are hidden.' },
-  { screen: 'intake', icon: 'ti-square-check', name: 'Tick boxes · Select shown', what: 'Choose the initiatives to analyse. Select shown ticks the filtered ones up to the limit; at the limit the other boxes are disabled.' },
-  { screen: 'intake', icon: 'ti-eraser', name: 'Clear selection · Remove all · Clear all messages', what: 'Quick clear: untick everything, empty the list, or dismiss every message.' },
-  { screen: 'intake', icon: 'ti-x', name: 'Remove (✕)', what: 'Removes an initiative from the list for this session.' },
-  { screen: 'intake', icon: 'ti-reload', name: 'Reload from the data folder · Add knowledge source', what: 'With the backend, sources come from its data folder: add or change files there, then reload. Without it, Add knowledge source registers uploaded files.' },
-  { screen: 'intake', icon: 'ti-player-play', name: 'Analyse', what: 'Starts the agent workflow for the ticked initiatives and takes you to the Analysis screen.' },
-  { screen: 'intake', icon: 'ti-device-floppy', name: 'Save draft', what: 'Not available yet (disabled).' },
-  { screen: 'pipeline', icon: 'ti-layout-grid', name: 'Summary · Findings by initiative', what: 'Switch between one card per initiative and the full list of findings grouped by initiative.' },
-  { screen: 'pipeline', icon: 'ti-filter', name: 'Initiative filter · type chips', what: 'Show one initiative, or only some kinds of finding (systems, stated, inferred, risks…).' },
-  { screen: 'pipeline', icon: 'ti-eye-off', name: 'Hide no-change links', what: 'Hides dependencies that need nobody to build, agree or re-test anything (on by default).' },
-  { screen: 'pipeline', icon: 'ti-hand-click', name: 'Hover · double-click a finding', what: 'Hover for a preview of its details; double-click, the chevron or Enter keeps them open.' },
-  { screen: 'pipeline', icon: 'ti-circle-dot', name: 'Agent circles', what: 'Click an agent to see its summary, inputs, outputs, notes and findings.' },
-  { screen: 'pipeline', icon: 'ti-refresh', name: 'Run again · Replay', what: 'For a backend run, starts a new run of the same initiatives (it uses LLM calls again). For an uploaded analysis file, replays it from the first agent.' },
-  { screen: 'pipeline', icon: 'ti-chart-dots', name: 'View results', what: 'Goes to the Results screen once the run is complete.' },
-  { screen: 'pipeline', icon: 'ti-arrow-left', name: 'Back to intake', what: 'Returns to Intake to change initiatives or sources.' },
-  { screen: 'results', icon: 'ti-download', name: 'Export', what: 'Downloads the analysed initiatives, the flagged risks and the results as JSON. Upload it again to replay it.' },
-  { screen: 'results', icon: 'ti-user-check', name: 'Review and export', what: 'A reviewer (RTE, EM or Architect) approves the order, then downloads the Jira link proposals (CSV), the sequence note and the audit trail. Nothing is written to Jira. Or challenge the order: say which initiative must come first and the sequence is worked out again.' },
-  { screen: 'results', icon: 'ti-list-check', name: 'Decision summary', what: 'The recommended order and what to do before PI planning. Click a risk group to open its first risk.' },
-  { screen: 'results', icon: 'ti-refresh', name: 'New analysis', what: 'Clears the current run and returns to Intake (your loaded data stays).' },
-  { screen: 'results', icon: 'ti-filter', name: 'Initiative · needs a change · level filters', what: 'One set of filters for the graph and the lists. Levels: Initiative (circle), Team (square), System (diamond).' },
-  { screen: 'results', icon: 'ti-click', name: 'Graph nodes and lines', what: 'Hover a line for why that dependency exists; click a node to see why it is in the graph and what depends on it.' },
-  { screen: 'results', icon: 'ti-list', name: 'Dependencies · Teams · Risks · Sequence tabs', what: 'Dependencies are grouped by the change they need; Teams groups them by the team they ask something of. Click one for its hops and evidence. Click a risk to open its reasoning. Sequence gives each step’s reason and what must be coordinated within a step.' },
-  { screen: 'results', icon: 'ti-chevron-down', name: 'Drawer ▲ ▼ ✕', what: 'Step through risks, or close the drawer.' },
-  { screen: 'results', icon: 'ti-copy', name: 'Copy reasoning / Flag for PI planning', what: 'Copy the explanation to the clipboard, or mark the risk to raise in PI planning. Flags are saved with a backend run and included in Export.' },
-  { screen: 'results', icon: 'ti-topology-star-3', name: 'How was this analysed?', what: 'Opens the Analysis screen with every agent’s details.' },
+  { screen: 'intake', icon: 'ti-plus', name: 'Add initiative', what: 'Type a title and description to add one initiative by hand.' },
+  { screen: 'intake', icon: 'ti-reload', name: 'Reload from the data folder', what: 'With the backend, sources come from its data folder: drop in updated files, then reload. Without it, Add knowledge source registers uploaded files.' },
+  { screen: 'intake', icon: 'ti-player-play', name: 'Analyse', what: 'Starts the agents for the ticked initiatives (with any notes you saved) and opens the Analysis screen.' },
+  { screen: 'pipeline', icon: 'ti-circle-dot', name: 'Agent circles', what: 'Hover for what the agent does; click for its inputs, outputs, notes and findings.' },
+  { screen: 'pipeline', icon: 'ti-filter', name: 'Initiative filter · kind chips', what: 'Show one initiative, or only some kinds of finding (systems, stated, inferred, risks…).' },
+  { screen: 'pipeline', icon: 'ti-refresh', name: 'Run again · Replay', what: 'For a backend run, starts a new run of the same initiatives with your latest input. For an uploaded file, replays it.' },
+  { screen: 'results', icon: 'ti-layout-dashboard', name: 'At a glance tiles · Before PI planning', what: 'The three use cases in numbers, and the short list of what to resolve. Click to jump to the section.' },
+  { screen: 'results', icon: 'ti-check', name: 'Keep · Dismiss (on a dependency)', what: 'Keep a hidden dependency the teams confirm (it becomes user-defined) or dismiss one that is not real. The next run uses your call.' },
+  { screen: 'results', icon: 'ti-notes', name: 'Notes · size', what: 'Open a dependency or a sequence row to add a note or change the T-shirt size. A note like “blocked on INIT-005” adds a dependency on the next run.' },
+  { screen: 'results', icon: 'ti-refresh', name: 'Rerun with updates', what: 'Starts a new run of the same initiatives with your notes, sizes, quarter placements and keep / dismiss decisions. The current results stay until it finishes.' },
+  { screen: 'results', icon: 'ti-layout-kanban', name: 'Decide quarters', what: 'Opens the decision dashboard.' },
+  { screen: 'results', icon: 'ti-user-check', name: 'Review & export', what: 'A reviewer (RTE, EM or Architect) approves the order, then downloads the Jira link proposals (CSV), the sequence note and the audit trail; or challenges it with a constraint and the sequence is worked out again.' },
+  { screen: 'results', icon: 'ti-download', name: 'Export', what: 'Downloads the analysed initiatives, flagged risks and results as JSON (it can be uploaded again to replay).' },
+  { screen: 'results', icon: 'ti-click', name: 'Graph nodes and lines', what: 'Hover a line for why that dependency exists; click a node for what touches it.' },
+  { screen: 'dashboard', icon: 'ti-drag-drop', name: 'Drag a card · Move to', what: 'Place an initiative in a quarter. A dashed card is a suggestion; a solid one is your decision.' },
+  { screen: 'dashboard', icon: 'ti-arrows-exchange', name: 'Recommended · As targeted', what: 'Where undecided cards start: the recommended plan, or the quarters the teams targeted.' },
+  { screen: 'dashboard', icon: 'ti-wand', name: 'Fix (on a placement check)', what: 'Moves the initiative that solves the issue.' },
+  { screen: 'dashboard', icon: 'ti-checks', name: 'Accept all · Reset', what: 'Turn every suggestion into a decision, or clear your decisions.' },
+  { screen: 'dashboard', icon: 'ti-file-spreadsheet', name: 'Export CSV', what: 'One row per initiative: targeted, recommended and decided quarter, size, points, priority and issues.' },
 ]
 
 interface Props {
@@ -96,7 +100,7 @@ export function HelpDrawer({ screen, onClose }: Props) {
           {tab === 'screens' && (
             <>
               <p className="help-intro">
-                The assistant works in three steps. Use the numbered tabs in the header to move between them at any time.
+                The assistant works in four steps. Use the numbered tabs in the header or the left pane to move between them at any time.
               </p>
               {(Object.keys(screenInfo) as Screen[]).map((id) => (
                 <div key={id} className={`help-card${id === screen ? ' here' : ''}`}>
@@ -132,9 +136,15 @@ export function HelpDrawer({ screen, onClose }: Props) {
             <>
               <p className="help-intro">With the backend running, initiatives and knowledge sources come from its data folder (see <code>data/README.md</code>). Without it, the app starts empty: upload your data on the Intake screen.</p>
               <div className="help-card">
+                <div className="help-card-title"><i className="ti ti-database" aria-hidden="true" /> The knowledge base</div>
+                <div className="help-card-body">
+                  <b>Initiatives</b> (status, dependency column, target quarter, T-shirt size, priority, description), <b>GitHub repositories</b> (repo-to-repo and shared-library dependencies, repo type, lifecycle), <b>team directory</b> (names, ART) and <b>team capacity</b> (story points per quarter: each team’s velocity). The <b>service ownership map</b> is read as a lookup of who owns each system, its lifecycle and its contract status. Other files in the folder are switched off.
+                </div>
+              </div>
+              <div className="help-card">
                 <div className="help-card-title"><i className="ti ti-file-spreadsheet" aria-hidden="true" /> CSV files</div>
                 <div className="help-card-body">
-                  A CSV with <code>initiative_id</code> and <code>initiative_name</code> (or <code>title</code>) columns is read as <b>initiatives</b>; <code>description</code>, <code>owning_team</code> and <code>priority</code> are shown if present. Any other CSV is registered as a <b>knowledge source</b>.
+                  A CSV with <code>initiative_id</code> and <code>initiative_name</code> (or <code>title</code>) columns is read as <b>initiatives</b>; <code>status</code>, <code>T-Shirt Sizing</code>, <code>dependency</code>, the target quarter, <code>owning_team</code>, <code>art</code> and <code>priority</code> are shown when present. Any other CSV is registered as a <b>knowledge source</b>.
                 </div>
               </div>
               <div className="help-card">
@@ -144,7 +154,7 @@ export function HelpDrawer({ screen, onClose }: Props) {
               <div className="help-card">
                 <div className="help-card-title"><i className="ti ti-braces" aria-hidden="true" /> JSON analysis result</div>
                 <div className="help-card-body">
-                  Without the backend, a JSON file with <code>agents</code>, <code>findings</code>, <code>graph</code>, <code>risks</code> and <code>sequence</code> (for example one saved with Export) is replayed on the Analysis and Results screens. It can also carry <code>initiatives</code> and <code>knowledgeSources</code>. See <code>frontend/DATA_FORMAT.md</code> for the full format.
+                  Without the backend, a JSON file with <code>agents</code>, <code>findings</code>, <code>graph</code>, <code>risks</code> and <code>sequence</code> (for example one saved with Export) is replayed on the Analysis, Results and Decisions screens. See <code>frontend/DATA_FORMAT.md</code> for the full format.
                 </div>
               </div>
             </>

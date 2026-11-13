@@ -1,5 +1,6 @@
 import type { SVGProps } from 'react'
 import { domainColor } from '../data/domains'
+import { Tip } from './Tip'
 import { CHANGE, LEVEL, teamName } from '../lib/deps'
 import type { DependencyRow, DepLevel, GraphEdge, GraphNode } from '../types'
 
@@ -130,7 +131,7 @@ export function DependencyGraph({ nodes, edges, highlight, onNodeClick, depsByKe
     <div className="graph-area">
       <div className="graph-title">
         <span>Dependency graph{caption && <span className="graph-caption"> · {caption}</span>}</span>
-        <div className="graph-legend" title="Node colour shows the agile release train (ART) or domain that owns it">
+        <div className="graph-legend">
           <span className="leg-title">Colour = ART:</span>
           {domains.map((d) => (
             <div className="leg-item" key={d}>
@@ -165,12 +166,16 @@ export function DependencyGraph({ nodes, edges, highlight, onNodeClick, depsByKe
               const dep = e.key ? depsByKey.get(e.key) : undefined
               const change = e.changeType ?? dep?.changeType
               const quiet = change === 'none'
+              // Hidden = nobody declared it (older files without `declared`: the inferred ones).
+              const hidden = e.declared === undefined ? e.inferred : !e.declared
+              const orders = (e.impact ?? dep?.impact) === 'orders'
               const lit = isLit(e.from) && isLit(e.to)
               const d = edgePath(a, b, r)
               return (
                 <g key={`${e.from}-${e.to}`} className="graph-edge">
                   <title>
                     {`${dep?.fromLabel ?? a.label} → ${dep?.toLabel ?? b.label}`}
+                    {`\n${hidden ? 'Hidden: found by the agents' : 'Declared by the team'}${orders ? ' · changes the order' : ''}`}
                     {change && `\n${CHANGE[change].label}`}
                     {dep?.reason && `\n${dep.reason}`}
                   </title>
@@ -179,11 +184,11 @@ export function DependencyGraph({ nodes, edges, highlight, onNodeClick, depsByKe
                   <path
                     d={d}
                     fill="none"
-                    stroke={e.inferred ? '#378ADD' : '#9e9d97'}
-                    strokeWidth={quiet ? 0.8 : e.inferred ? 1.5 : 1.3}
-                    strokeDasharray={e.inferred ? '4 3' : undefined}
+                    stroke={hidden ? 'var(--edge-hidden)' : 'var(--edge-declared)'}
+                    strokeWidth={quiet ? 0.8 : orders ? 2.4 : 1.4}
+                    strokeDasharray={hidden ? '4 3' : undefined}
                     markerEnd="url(#arr)"
-                    opacity={!lit ? 0.1 : quiet ? 0.3 : e.inferred ? 0.85 : 0.7}
+                    opacity={!lit ? 0.1 : quiet ? 0.3 : 0.85}
                   />
                 </g>
               )
@@ -226,12 +231,21 @@ export function DependencyGraph({ nodes, edges, highlight, onNodeClick, depsByKe
       </div>
       <div className="graph-keys">
         {(['initiative', 'team', 'system'] as const).map((k) => (
-          <span key={k} title={LEVEL[k].hint}><Key kind={k} /> {LEVEL[k].label}</span>
+          <Tip key={k} title={LEVEL[k].label} content={LEVEL[k].hint}><span><Key kind={k} /> {LEVEL[k].label}</span></Tip>
         ))}
         <span className="graph-keys-sep" />
-        <span title="Written down in Jira, Confluence or Slack"><svg width="22" height="6" aria-hidden="true"><line x1="0" y1="3" x2="22" y2="3" stroke="#9e9d97" strokeWidth="1.5" /></svg> stated</span>
-        <span title="Inferred from code manifests or the ownership map, not written down"><svg width="22" height="6" aria-hidden="true"><line x1="0" y1="3" x2="22" y2="3" stroke="#378ADD" strokeWidth="1.5" strokeDasharray="4 3" /></svg> inferred from code / ownership</span>
-        <span><svg width="22" height="6" aria-hidden="true"><line x1="0" y1="3" x2="22" y2="3" stroke="#9e9d97" strokeWidth="1" opacity="0.35" /></svg> no change needed</span>
+        <Tip title="Declared" content="User-defined: the initiative lists it in its own dependency column, or a planner kept it or wrote it in a note.">
+          <span><svg width="22" height="6" aria-hidden="true"><line x1="0" y1="3" x2="22" y2="3" stroke="var(--edge-declared)" strokeWidth="1.5" /></svg> declared</span>
+        </Tip>
+        <Tip title="Hidden" content="Nobody declared it: the agents found it in a description, in the GitHub manifests or through a shared system in the ownership lookup.">
+          <span><svg width="22" height="6" aria-hidden="true"><line x1="0" y1="3" x2="22" y2="3" stroke="var(--edge-hidden)" strokeWidth="1.5" strokeDasharray="4 3" /></svg> hidden</span>
+        </Tip>
+        <Tip title="Changes the order" content="The target must land first: the consumer starts the sprint after the provider finishes.">
+          <span><svg width="22" height="6" aria-hidden="true"><line x1="0" y1="3" x2="22" y2="3" stroke="var(--edge-declared)" strokeWidth="2.6" /></svg> changes the order</span>
+        </Tip>
+        <Tip title="No change needed" content="Awareness only: nothing to build, agree or re-test.">
+          <span><svg width="22" height="6" aria-hidden="true"><line x1="0" y1="3" x2="22" y2="3" stroke="var(--edge-declared)" strokeWidth="1" opacity="0.35" /></svg> no change needed</span>
+        </Tip>
       </div>
       <div className="graph-hint">
         <i className="ti ti-click" aria-hidden="true" /> Hover a line for the reason · click a node to see why it is here

@@ -18,7 +18,7 @@ from langgraph.types import Command
 
 from agents.graph import build_graph
 from agents.runtime import Budget, EventSink, RunContext, Tracer, now_iso, register
-from agents.state import AgentState, Approval, Initiative
+from agents.state import AgentState, Approval, Initiative, PlannerInput
 from app.config import Settings
 from context.snapshot import ContextSnapshot
 from llm.adapter import BaseLLM
@@ -47,7 +47,8 @@ class RunManager:
         self.graph = build_graph()
         self.runs: dict[str, RunHandle] = {}
 
-    def start(self, initiatives: list[Initiative], snapshot: ContextSnapshot, llm: BaseLLM) -> RunHandle:
+    def start(self, initiatives: list[Initiative], snapshot: ContextSnapshot, llm: BaseLLM,
+              planner: PlannerInput | None = None) -> RunHandle:
         run_id = f"run-{datetime.now():%Y%m%d-%H%M%S}-{uuid.uuid4().hex[:6]}"
         run_dir = self.settings.runs_dir / run_id
         run_dir.mkdir(parents=True, exist_ok=True)
@@ -58,9 +59,14 @@ class RunManager:
         register(ctx)
         handle = RunHandle(run_id, ctx)
         self.runs[run_id] = handle
+        planner = planner or PlannerInput()
         ctx.emit("run_started", None, initiatives=[{"id": i.id, "title": i.title} for i in initiatives],
-                 llm=llm.status().__dict__, data_fingerprint=snapshot.fingerprint)
-        self._launch(handle, AgentState(run_id=run_id, initiatives=initiatives))
+                 llm=llm.status().__dict__, data_fingerprint=snapshot.fingerprint,
+                 planner={"initiative_notes": len(planner.initiative_notes), "sizes": len(planner.sizes),
+                          "quarters": len(planner.quarters),
+                          "dependency_notes": len(planner.dependency_notes),
+                          "dependency_decisions": len(planner.dependency_decisions)})
+        self._launch(handle, AgentState(run_id=run_id, initiatives=initiatives, planner=planner))
         return handle
 
     def review(self, handle: RunHandle, approval: Approval) -> None:

@@ -1,12 +1,15 @@
 import type { ReactNode } from 'react'
 import type { Screen } from '../types'
+import { SCREENS } from './SideNav'
 import { ThemePicker } from './ThemePicker'
+import { Tip } from './Tip'
 
-const steps: { id: Screen; label: string; icon: string }[] = [
-  { id: 'intake', label: 'Intake', icon: 'ti-upload' },
-  { id: 'pipeline', label: 'Analysis', icon: 'ti-topology-star-3' },
-  { id: 'results', label: 'Results', icon: 'ti-chart-dots' },
-]
+const LOCKED: Record<Screen, string> = {
+  intake: '',
+  pipeline: 'Add initiatives to unlock.',
+  results: 'Run the analysis to unlock the results.',
+  dashboard: 'Run the analysis to unlock the decision dashboard.',
+}
 
 interface Props {
   current: Screen
@@ -17,7 +20,7 @@ interface Props {
 }
 
 export function TopBar({ current, enabled, onNavigate, onHelp, children }: Props) {
-  const currentIndex = steps.findIndex((s) => s.id === current)
+  const currentIndex = SCREENS.findIndex((s) => s.id === current)
 
   return (
     <header className="topbar">
@@ -25,26 +28,26 @@ export function TopBar({ current, enabled, onNavigate, onHelp, children }: Props
         <div className="logo-dot"><i className="ti ti-layers-subtract" aria-hidden="true" /></div>
         <div>
           <div className="logo-name">PI planning assistant</div>
-          <div className="logo-sub">Preparation · Financial services</div>
+          <div className="logo-sub">PI preparation agent · Financial services</div>
         </div>
       </div>
 
       <nav className="stepper" aria-label="Workflow steps">
-        {steps.map((s, i) => {
+        {SCREENS.map((s, i) => {
           const state = s.id === current ? 'current' : i < currentIndex ? 'past' : 'next'
           return (
-            <button
-              key={s.id}
-              className={`step ${state}`}
-              disabled={!enabled[s.id]}
-              aria-current={s.id === current ? 'step' : undefined}
-              title={enabled[s.id] ? `Go to ${s.label}` : s.id === 'results' ? 'Run the analysis to unlock results' : 'Add initiatives to unlock'}
-              onClick={() => onNavigate(s.id)}
-            >
-              <span className="step-num">{i + 1}</span>
-              <i className={`ti ${s.icon}`} aria-hidden="true" />
-              {s.label}
-            </button>
+            <Tip key={s.id} title={`${i + 1} · ${s.label}`} content={enabled[s.id] ? s.hint : `${s.hint} ${LOCKED[s.id]}`}>
+              <button
+                className={`step ${state}`}
+                disabled={!enabled[s.id]}
+                aria-current={s.id === current ? 'step' : undefined}
+                onClick={() => onNavigate(s.id)}
+              >
+                <span className="step-num">{i + 1}</span>
+                <i className={`ti ${s.icon}`} aria-hidden="true" />
+                <span className="step-label">{s.label}</span>
+              </button>
+            </Tip>
           )
         })}
       </nav>

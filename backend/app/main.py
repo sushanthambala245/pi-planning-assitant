@@ -22,15 +22,16 @@ from pydantic import BaseModel, Field
 
 from agents.ask import ask as ask_agent
 from agents.runtime import now_iso
-from agents.state import Approval, Constraint, Initiative
+from agents.state import Approval, Constraint, Initiative, PlannerInput
 from app.analysis_view import build_analysis
 from app.config import get_settings
 from app.identity import allowed, identity_from_request, roster_view
 from app.runs import TERMINAL, RunHandle, RunManager
 from context.loader import SourceReport, load_csv
-from context.snapshot import ContextSnapshot, build_snapshot
+from context.snapshot import ContextSnapshot, build_snapshot, initiative_from_row
 from context.sources import SOURCES
 from llm.adapter import build_llm
+from tools.planning import is_ready as ready_status
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("pi-copilot")
@@ -87,6 +88,8 @@ class ManualInitiative(BaseModel):
 
 class RunRequest(BaseModel):
     initiative_ids: list[str] = Field(min_length=1)
+    # Notes, sizes and dependency decisions a planner added after an earlier run.
+    planner: PlannerInput | None = None
 
 
 class ConstraintIn(BaseModel):
@@ -125,15 +128,28 @@ def _health() -> dict:
     if not llm.enabled:
         warnings.append(f"LLM disabled ({llm.reason}): rule-based extraction and template explanations are used.")
     if not S.snapshot.has("S1"):
-        warnings.append(f"No initiatives loaded: add initiatives.csv (and the other files) to {S.settings.data_dir} "
-                        "and reload.")
+        warnings.append(f"No initiatives loaded: add initiatives.csv (or initiatives_updated_v1.csv) and the other "
+                        f"files to {S.settings.data_dir} and reload.")
     warnings += [f"{r.id} {r.filename} is invalid: {'; '.join(r.errors[:1])}" for r in reports if r.status == "invalid"]
     return {"status": "ok", "llm": llm.__dict__,
             "data": {**S.snapshot.summary(), "ready_sources": sum(r.status in ("ready", "partial") for r in reports),
                      "total_sources": len(SOURCES)},
             "limits": {"max_initiatives_per_run": S.settings.max_initiatives_per_run,
                        "max_upload_initiatives": S.settings.max_upload_initiatives},
+            "ready_statuses": list(S.settings.ready_statuses),
+            "planning": {"tshirt_points": dict(S.settings.tshirt_points), "default_size": S.settings.default_size,
+                         "sprints_per_pi": S.settings.sprints_per_pi, "plan_quarters": S.settings.plan_quarters,
+                         "velocity_tiers": dict(S.settings.velocity_tiers)},
             "warnings": warnings}
+
+
+def is_ready(ini: Initiative) -> bool:
+    return ready_status(ini.status, ini.origin, S.settings.ready_statuses)
+
+
+def _initiative_view(ini: Initiative) -> dict:
+    return {**ini.model_dump(exclude={"note", "size_override", "quarter_override"}), "ready": is_ready(ini),
+            "team_name": S.snapshot.team_name(ini.owning_team) if ini.owning_team else ""}
 
 
 def _sources() -> list[dict]:
@@ -168,7 +184,7 @@ def reload_sources() -> dict:
 
 @app.get("/api/initiatives")
 def list_initiatives() -> dict:
-    return {"initiatives": [i.model_dump() for i in S.initiatives().values()]}
+    return {"initiatives": [_initiative_view(i) for i in S.initiatives().values()]}
 
 
 @app.post("/api/initiatives")
@@ -177,10 +193,10 @@ def add_initiative(body: ManualInitiative) -> dict:
         iid = f"MAN-{len([i for i in S.session_initiatives if i.startswith('MAN-')]) + 1:03d}"
         ini = Initiative(id=iid, title=body.title.strip(), description=body.description.strip(),
                          owning_team=S.snapshot.resolver.team(body.owning_team).canonical or body.owning_team.strip(),
-                         target_pi=body.target_pi, origin="manual")
+                         target_pi=body.target_pi, origin="manual", status=S.settings.ready_statuses[0])
         S.session_initiatives[iid] = ini
         S.snapshot.resolver.add_initiative(iid, ini.title)
-    return ini.model_dump()
+    return _initiative_view(ini)
 
 
 @app.post("/api/initiatives/upload")
@@ -201,15 +217,12 @@ async def upload_initiatives(file: UploadFile = File(...)) -> dict:
     added = []
     with S.lock:
         for _, r in df.head(limit).iterrows():
-            iid = f"UP-{r['initiative_id']}"
-            est = r.get("estimate_points")
-            ini = Initiative(id=iid, title=r["title"], description=r.get("description", ""),
-                             owning_team=S.snapshot.resolver.team(r["owning_team"]).canonical or r["owning_team"],
-                             target_pi=r.get("target_pi") or None, art=r.get("art") or None,
-                             estimate_points=None if est != est or est is None else float(est), origin="upload")
-            S.session_initiatives[iid] = ini
-            S.snapshot.resolver.add_initiative(iid, ini.title)
-            added.append(ini.model_dump())
+            row = {**r.to_dict(), "initiative_id": f"UP-{r['initiative_id']}",
+                   "owning_team": S.snapshot.resolver.team(r["owning_team"]).canonical or r["owning_team"]}
+            ini = initiative_from_row(row, "upload")
+            S.session_initiatives[ini.id] = ini
+            S.snapshot.resolver.add_initiative(ini.id, ini.title)
+            added.append(_initiative_view(ini))
     return {"added": added, "skipped": skipped, "limit": limit, "report": report.as_dict()}
 
 
@@ -229,7 +242,20 @@ def start_run(body: RunRequest, request: Request) -> dict:
     unknown = [i for i in ids if i not in pool]
     if unknown:
         raise HTTPException(400, f"unknown initiative id(s): {', '.join(unknown)}")
-    handle = S.runs.start([pool[i] for i in ids], S.snapshot, S.llm)
+    not_ready = [f"{i} ({pool[i].status or 'no status'})" for i in ids if not is_ready(pool[i])]
+    if not_ready:
+        raise HTTPException(400, f"only initiatives with status {', '.join(S.settings.ready_statuses)} can be "
+                                 f"analysed; not ready: {', '.join(not_ready[:10])}")
+    planner = body.planner or PlannerInput()
+    # Only the run's initiatives count; a quarter placement is a short label ("Q2"), "later" means
+    # "not in the planning horizon" and is kept as the planner wrote it.
+    planner = planner.model_copy(update={k: {i: v for i, v in getattr(planner, k).items() if i in pool}
+                                         for k in ("initiative_notes", "sizes", "quarters")})
+    chosen = [pool[i].model_copy(update={"note": planner.initiative_notes.get(i, "").strip()[:2000],
+                                         "size_override": planner.sizes.get(i, "").strip().upper()[:4],
+                                         "quarter_override": planner.quarters.get(i, "").strip()[:20]})
+              for i in ids]
+    handle = S.runs.start(chosen, S.snapshot, S.llm, planner)
     return {"run_id": handle.run_id}
 
 
@@ -254,7 +280,7 @@ def run_analysis(run_id: str) -> dict:
     """The run in the UI's Analysis contract; poll it while the run is in progress."""
     h = _handle(run_id)
     return build_analysis(h.run_id, h.status, h.error, S.runs.state(h), list(h.ctx.events.events), h.ctx.snapshot,
-                          h.ctx.flags)
+                          h.ctx.flags, S.settings.ready_statuses, S.settings)
 
 
 @app.get("/api/runs/{run_id}/events")

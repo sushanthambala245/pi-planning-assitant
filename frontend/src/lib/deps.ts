@@ -2,38 +2,41 @@ import type { Analysis, ChangeType, DependencyRow, DepLevel, Finding, PathHop, V
 
 /** What each change class asks of people. Order = most to least work. */
 export const CHANGE: Record<ChangeType, { label: string; short: string; icon: string; hint: string }> = {
-  code: { label: 'Code change', short: 'Code change', icon: 'ti-code', hint: 'Someone must change code before or alongside this initiative' },
-  flow: { label: 'Flow / integration change', short: 'Flow change', icon: 'ti-arrows-exchange', hint: 'An integration, data flow or interface contract must be agreed' },
-  regression: { label: 'Regression testing', short: 'Retest', icon: 'ti-test-pipe', hint: 'Nothing to build, but something must be re-tested after the change' },
-  none: { label: 'No change needed', short: 'No change', icon: 'ti-eye', hint: 'Awareness only: nothing to build, agree or re-test' },
+  code: { label: 'Code change', short: 'Code change', icon: 'ti-code', hint: 'Someone must change code before or alongside this initiative: the provider changes an interface, a shared system or a library that this initiative builds on. Plan the change in the provider team’s capacity.' },
+  flow: { label: 'Flow / integration change', short: 'Flow change', icon: 'ti-arrows-exchange', hint: 'An integration, data flow or interface contract must be agreed between the teams (for example this initiative writes to a system another team owns). Agree the contract before PI planning.' },
+  regression: { label: 'Regression testing', short: 'Retest', icon: 'ti-test-pipe', hint: 'Nothing to build, but something must be re-tested after the other change lands: a read-only consumer, a code call or a shared library user.' },
+  none: { label: 'No change needed', short: 'No change', icon: 'ti-eye', hint: 'Awareness only: nothing to build, agree or re-test (for example the system belongs to the initiative’s own team).' },
 }
 export const CHANGE_ORDER: ChangeType[] = ['code', 'flow', 'regression', 'none']
 export const needsChange = (c: ChangeType | undefined) => c !== undefined && c !== 'none'
 
 /** Levels of abstraction: what a dependency is on, and the hops in between. */
 export const LEVEL: Record<DepLevel | PathHop['level'], { label: string; icon: string; hint: string }> = {
-  initiative: { label: 'Initiative', icon: 'ti-target', hint: 'Another initiative planned in this PI: the work must be sequenced' },
-  team: { label: 'Team', icon: 'ti-users', hint: 'Another team: their people, capacity or approval are needed' },
-  system: { label: 'System', icon: 'ti-server', hint: 'A shared service, API or dataset' },
-  repo: { label: 'Repository', icon: 'ti-brand-git', hint: 'A code repository (from the repo manifests)' },
+  initiative: { label: 'Initiative', icon: 'ti-target', hint: 'Another initiative in this plan: the two must be sequenced or coordinated, and the quarter plan accounts for it.' },
+  team: { label: 'Team', icon: 'ti-users', hint: 'Another team (from the team directory): their people, capacity or approval are needed, but no initiative of theirs is in this plan.' },
+  system: { label: 'System', icon: 'ti-server', hint: 'A shared service, API or dataset from the ownership lookup. Its owning team is the one to talk to.' },
+  repo: { label: 'Repository', icon: 'ti-brand-git', hint: 'A code repository (GitHub repos file): the hop through which a code or shared-library link was found.' },
 }
 export const LEVEL_ORDER: DepLevel[] = ['initiative', 'team', 'system']
 
 /**
- * How sure we are, in three words used everywhere: *stated* = written down in Jira, Confluence
- * or Slack; *inferred* = found in code manifests or the ownership map; *confirmed* = both.
- * Verdicts are per initiative and owning team, so a link can be confirmed by a related link.
+ * How sure we are, in three words used everywhere: *stated* = written down by the team (its
+ * dependency column or description, or a planner note); *inferred* = found in GitHub or the ownership
+ * lookup; *confirmed* = both. Verdicts are per initiative and owning team, so a link can be confirmed
+ * by a related link.
  */
 export const VERDICT: Record<Verdict, { label: string; icon: string; hint: string }> = {
-  confirmed: { label: 'Confirmed', icon: 'ti-circle-check', hint: 'Written down (stated), and the code or ownership data points the same way for this team' },
-  stated_only: { label: 'Stated only', icon: 'ti-quote', hint: 'Written in Jira / Confluence / Slack, but not visible in code or ownership data' },
-  inferred_only: { label: 'Inferred only', icon: 'ti-git-fork', hint: 'Inferred from code manifests or the ownership map, but nobody has written it down: confirm it with the team' },
+  confirmed: { label: 'Confirmed', icon: 'ti-circle-check', hint: 'Written down by the team (dependency column, description or a planner note), and GitHub or the ownership lookup point the same way for this team. The strongest evidence there is.' },
+  stated_only: { label: 'Stated only', icon: 'ti-quote', hint: 'Written down by the team, but nothing in GitHub or the ownership lookup backs it up. Usually fine; check it still holds.' },
+  inferred_only: { label: 'Inferred only', icon: 'ti-git-fork', hint: 'Found in GitHub or the ownership lookup, but nobody has written it down: confirm it with the team, then Keep it (it becomes user-defined) or Dismiss it.' },
 }
 
 export const METHOD: Record<string, string> = {
-  explicit: 'Stated in text',
-  code: 'Code manifest',
-  ownership: 'Ownership map',
+  declared: 'Dependency column',
+  explicit: 'Description',
+  code: 'GitHub code',
+  library: 'Shared library',
+  ownership: 'Ownership lookup',
   constraint: 'Reviewer',
 }
 

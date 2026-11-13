@@ -277,7 +277,7 @@ svg .small{font-size:11px}
 <div class="tbl"><table>
 <thead><tr><th>Store</th><th>Holds</th><th>Lifetime</th><th>Rationale</th></tr></thead>
 <tbody>
-<tr><td>Dependency graph</td><td>Nodes and edges, confirmed or proposed</td><td>Persistent, snapshot-versioned per PI</td><td>Reusable knowledge: service ownership, known consumers, manifest edges. Recomputing these each run wastes tokens and loses human confirmations.</td></tr>
+<tr><td>Dependency graph</td><td>Nodes and edges, confirmed or proposed</td><td>Persistent, snapshot-versioned per PI</td><td>Reusable knowledge: service ownership, known consumers, manifest edges. Recomputing these each run wastes tokens and loses human s.</td></tr>
 <tr><td>Evidence store</td><td>Excerpts, rationale bundles, rule traces, decision records</td><td>Retained per audit policy (see §9)</td><td>Everything in the reasoning drawer resolves to a stored record.</td></tr>
 <tr><td>Vector index</td><td>Embeddings of epics, Confluence pages, dependency docs</td><td>Rebuilt on source change</td><td>Retrieval for the text and implicit channels only; never the source of truth.</td></tr>
 <tr><td>Run ledger</td><td>Run ID, snapshot ID, model, prompt and rule versions, step status</td><td>Persistent</td><td>Reproducibility: any finding can be re-derived.</td></tr>
@@ -285,7 +285,7 @@ svg .small{font-size:11px}
 </tbody></table></div>
 
 <h3>Entity resolution</h3>
-<p>The hardest data problem is not extraction but naming: "ledger posting API", "Posting Service" and "ledger-posting-svc" are one thing. A resolver maps mentions to canonical nodes using the ServiceNow-derived ownership map as the authority, then fuzzy and embedding matches with a threshold. Matches below threshold become <code>unresolved mention</code> items for human confirmation, and confirmations are stored as aliases so the same question is never asked twice.</p>
+<p>The hardest data problem is not extraction but naming: "ledger posting API", "Posting Service" and "ledger-posting-svc" are one thing. A resolver maps mentions to canonical nodes using the ServiceNow-derived ownership map as the authority, then fuzzy and embedding matches with a threshold. Matches below threshold become <code>unresolved mention</code> items for human , and s are stored as aliases so the same question is never asked twice.</p>
 
 <h2 id="flow">6. Runtime flow</h2>
 <figure>
@@ -354,7 +354,7 @@ svg .small{font-size:11px}
 <div class="tbl"><table>
 <thead><tr><th>Control point</th><th>Who</th><th>Trigger</th><th>What the human sees</th><th>What happens on each outcome</th></tr></thead>
 <tbody>
-<tr><td>Edge confirmation</td><td>EM or PO of the dependent team</td><td>Proposed edge below confidence threshold, or any GitHub-only edge on a Tier-1 service</td><td>Edge, evidence excerpts, channel, confidence</td><td>Confirm → status confirmed. Reject → stored as negative example and suppressed on future runs. Defer → stays flagged in pre-PI report.</td></tr>
+<tr><td>Edge </td><td>EM or PO of the dependent team</td><td>Proposed edge below confidence threshold, or any GitHub-only edge on a Tier-1 service</td><td>Edge, evidence excerpts, channel, confidence</td><td>Confirm → status confirmed. Reject → stored as negative example and suppressed on future runs. Defer → stays flagged in pre-PI report.</td></tr>
 <tr><td>Ownerless dependency decision</td><td>RTE with Architect</td><td>DRI-X-002</td><td>Candidate owners ranked by evidence (CODEOWNERS, commit history, ServiceNow)</td><td>The system never assigns. A human decision is recorded; ownership is changed in ServiceNow by the owning process.</td></tr>
 <tr><td>Sequence acceptance</td><td>RTE, Architect, Business Owner</td><td>Every run</td><td>Order, chain of reasons, alternatives, capacity impact</td><td>Accept / modify / reject. Modifications are stored with rationale and feed evaluation.</td></tr>
 <tr><td>Regulated sign-off</td><td>Control owner or Architect, plus RTE</td><td>Any item tagged payments, lending, fraud control, or Archer-tracked</td><td>Recommendation as decision support, with the gating control status</td><td>Required before any related proposal is released to Jira.</td></tr>
@@ -513,7 +513,7 @@ svg .small{font-size:11px}
   <li><b>The input is unstructured and cross-system.</b> Dependencies exist in prose and in code. Without a model that reads both and reconciles them, there is nothing to analyse; this is the core of the problem rather than a convenience layer on a finished process.</li>
   <li><b>Inference replaces tagging.</b> The human role shifts from authoring dependency records to confirming or rejecting candidates, which is what keeps EM effort down.</li>
   <li><b>The system stays alive.</b> A tool that only helps during planning leaves the post-PI drift problem untouched. Continuous re-evaluation is only feasible when extraction is automated.</li>
-  <li><b>Learning loop.</b> Confirmations and rejections accumulate as labeled data, improving thresholds and extraction prompts per ART, within governed change control.</li>
+  <li><b>Learning loop.</b> s and rejections accumulate as labeled data, improving thresholds and extraction prompts per ART, within governed change control.</li>
 </ul>
 <p>The deliberate counterweight: the model is kept out of authority. This is the AI-native pattern appropriate to a regulated bank: AI does the discovery work at a scale people cannot, and deterministic code and named humans own every consequential decision.</p>
 

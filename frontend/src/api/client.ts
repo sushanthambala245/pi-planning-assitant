@@ -1,5 +1,5 @@
 import { classify } from '../lib/ingest'
-import type { Initiative, KnowledgeSource, Reviewer, ReviewState } from '../types'
+import type { Initiative, KnowledgeSource, PlannerInput, Reviewer, ReviewState } from '../types'
 
 // Thin client over the FastAPI backend (backend/app/main.py). URLs are relative: in dev and
 // preview, Vite forwards /api to http://localhost:8000 (vite.config.ts).
@@ -8,6 +8,9 @@ export interface Health {
   llm: { enabled: boolean; provider: string; model: string; reason: string }
   data: { ready_sources: number; total_sources: number; data_dir: string; fingerprint: string }
   limits: { max_initiatives_per_run: number; max_upload_initiatives?: number }
+  ready_statuses?: string[]
+  planning?: { tshirt_points: Record<string, number>; default_size: string; sprints_per_pi: number; plan_quarters: number;
+    velocity_tiers: Record<string, number> }
   warnings: string[]
 }
 
@@ -19,6 +22,15 @@ interface BackendInitiative {
   target_pi: string | null
   art: string | null
   origin: 'S1' | 'upload' | 'manual'
+  status?: string
+  ready?: boolean
+  team_name?: string
+  priority?: string
+  estimate_points?: number | null
+  planned_sprint?: string
+  dependency_text?: string
+  tshirt_size?: string
+  business_outcome?: string
 }
 
 export interface SourceReport {
@@ -26,7 +38,7 @@ export interface SourceReport {
   filename: string
   title: string
   mock: boolean
-  status: 'ready' | 'partial' | 'invalid' | 'missing'
+  status: 'ready' | 'partial' | 'invalid' | 'missing' | 'off'
   rows: number
   rejected_rows: number
   errors: string[]
@@ -86,8 +98,9 @@ export const api = {
   },
   /** Re-reads the data folder; returns the new source reports. */
   reloadSources: () => call<{ sources: SourceReport[] }>('/sources/reload', { method: 'POST' }).then((r) => r.sources),
-  startRun: (initiativeIds: string[]) =>
-    call<{ run_id: string }>('/runs', post({ initiative_ids: initiativeIds })).then((r) => r.run_id),
+  /** `planner` carries the notes, sizes and dependency decisions added after an earlier run. */
+  startRun: (initiativeIds: string[], planner?: PlannerInput) =>
+    call<{ run_id: string }>('/runs', post({ initiative_ids: initiativeIds, planner: planner ? toPlannerBody(planner) : undefined })).then((r) => r.run_id),
   runAnalysis: (runId: string) => call<RunAnalysis>(`${run(runId)}/analysis`),
   reviewers: () => call<{ reviewers: Reviewer[] }>('/reviewers').then((r) => r.reviewers),
   /** Approve (exports the proposals) or challenge (re-sequences with a constraint); the run then resumes. */
@@ -99,13 +112,33 @@ export const api = {
 /** A file the run exported after approval (proposals CSV, sequence note, audit). */
 export const exportUrl = (runId: string, name: string) => `/api${run(runId)}/export/${encodeURIComponent(name)}`
 
+/** The backend's snake_case PlannerInput; empty notes are left out. */
+const toPlannerBody = (p: PlannerInput) => ({
+  initiative_notes: Object.fromEntries(Object.entries(p.initiativeNotes).filter(([, v]) => v.trim())),
+  sizes: Object.fromEntries(Object.entries(p.sizes).filter(([, v]) => v)),
+  quarters: Object.fromEntries(Object.entries(p.quarters ?? {}).filter(([, v]) => v)),
+  dependency_notes: Object.fromEntries(Object.entries(p.dependencyNotes).filter(([, v]) => v.trim())),
+  dependency_decisions: p.dependencyDecisions,
+})
+
 export const toInitiative = (b: BackendInitiative): Initiative => ({
   id: b.id,
   title: b.title,
   description: b.description,
-  meta: [b.owning_team, b.target_pi, b.origin !== 'S1' && b.origin].filter(Boolean).join(' · ') || undefined,
+  meta: [b.team_name || b.owning_team, b.planned_sprint?.replace(/^.*Sprint-?/i, 'Sprint '),
+    b.estimate_points != null && `${b.estimate_points} pts`, b.origin !== 'S1' && b.origin].filter(Boolean).join(' · ') || undefined,
   team: b.owning_team || undefined,
+  teamName: b.team_name || undefined,
   pi: b.target_pi || undefined,
+  priority: b.priority || undefined,
+  status: b.status || undefined,
+  ready: b.ready,
+  points: b.estimate_points ?? undefined,
+  plannedSprint: b.planned_sprint || undefined,
+  dependencyText: b.dependency_text || undefined,
+  size: b.tshirt_size || undefined,
+  art: b.art || undefined,
+  outcome: b.business_outcome || undefined,
 })
 
 /** A source the backend loaded (some rows may have been rejected). */
@@ -118,7 +151,9 @@ export const toSource = (r: SourceReport): KnowledgeSource => ({
   name: `${r.title} (${r.id})`,
   meta: isLoaded(r)
     ? `${r.rows} rows${r.rejected_rows ? `, ${r.rejected_rows} rejected` : ''} · ${r.filename}`
-    : r.status === 'missing'
+    : r.status === 'off'
+      ? `Not part of the knowledge base${r.filename ? ` · ${r.filename}` : ''}`
+      : r.status === 'missing'
       ? `Not in the data folder: ${r.filename}${r.mock ? ' (mock source)' : ''}`
       : `Not loaded: ${r.errors[0] ?? 'invalid file'}`,
   status: r.status,

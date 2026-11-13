@@ -94,8 +94,11 @@ class EntityResolver:
         initiatives: dict[str, str],
         threshold: float,
         repo_ids: dict[str, str] | None = None,
+        team_names: dict[str, str] | None = None,
     ):
-        self.teams = Catalogue("team", teams, threshold)
+        """`team_names` maps display names (S6 team_name) onto team ids, so "Account Services"
+        resolves to CBL-Account-Services."""
+        self.teams = Catalogue("team", teams, threshold, ids=team_names)
         self.services = Catalogue("service", services, threshold)
         self.repos = Catalogue("repo", repos, threshold, ids=repo_ids)
         self.initiative_titles = Catalogue("initiative", list(initiatives.values()), threshold)
@@ -119,6 +122,15 @@ class EntityResolver:
         if r.canonical:
             return Resolution(raw, self._initiative_by_title[r.canonical], "initiative", r.score, r.method)
         return r
+
+    def initiative_id_mentions(self, text: str) -> list[str]:
+        """Known initiative ids written in text ("blocked on INIT-005"), in order, once each."""
+        out: list[str] = []
+        for m in re.finditer(r"(?<![A-Za-z0-9-])([A-Za-z]{2,8}-\d{1,6})(?![A-Za-z0-9])", text or ""):
+            iid = self._initiative_ids.get(norm(m.group(1)))
+            if iid and iid not in out:
+                out.append(iid)
+        return out
 
     def add_initiative(self, iid: str, title: str) -> None:
         """Register an uploaded or manual initiative so text can refer to it."""

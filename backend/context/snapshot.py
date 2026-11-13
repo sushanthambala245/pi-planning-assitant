@@ -68,19 +68,7 @@ class ContextSnapshot:
             return []
         out = []
         for _, r in self.table("S1").iterrows():
-            est = r.get("estimate_points")
-            out.append(
-                Initiative(
-                    id=r["initiative_id"],
-                    title=r["title"],
-                    description=r.get("description", "") or "",
-                    owning_team=r.get("owning_team", "") or "",
-                    target_pi=(r.get("target_pi") or None),
-                    art=(r.get("art") or None),
-                    estimate_points=None if pd.isna(est) else float(est),
-                    origin="S1",
-                )
-            )
+            out.append(initiative_from_row(r, "S1"))
         return out
 
     def epics_for(self, initiative_id: str) -> pd.DataFrame:
@@ -105,25 +93,34 @@ class ContextSnapshot:
     def team_row(self, name: str) -> dict | None:
         return self._row("S6", "team", name)
 
-    def repos_for_service(self, service: str) -> list[str]:
-        repos = set()
-        row = self.service_row(service)
-        if row:
-            repos.update(row.get("repo") or [])
-        s4 = self.table("S4")
-        if not s4.empty and "service" in s4.columns:
-            repos.update(s4.loc[s4["service"].map(norm) == norm(service), "repo"])
-        return sorted(r for r in repos if r)
+    def team_name(self, team: str) -> str:
+        """The team's display name from S6, else the id as written."""
+        return str((self.team_row(team) or {}).get("team_name") or team)
 
-    def services_for_repo(self, repo: str) -> list[str]:
-        out = set()
-        s7 = self.table("S7")
-        if not s7.empty and "repo" in s7.columns:
-            out.update(s7.loc[s7["repo"].map(lambda rs: norm(repo) in {norm(r) for r in rs}), "service"])
-        row = self.repo_row(repo)
-        if row and row.get("service"):
-            out.add(row["service"])
-        return sorted(s for s in out if s)
+    def repos_of_team(self, team: str) -> list[dict]:
+        """The S4 repositories a team owns."""
+        df = self.table("S4")
+        if df.empty or not team:
+            return []
+        return [r.to_dict() for _, r in df[df["owner_team"].map(norm) == norm(team)].iterrows()]
+
+    def pi_names(self) -> list[str]:
+        """Every quarter / PI named in S1 targets and S5 capacity rows."""
+        names: list[str] = []
+        for sid, col in (("S1", "target_pi"), ("S5", "pi")):
+            df = self.table(sid)
+            if not df.empty and col in df.columns:
+                names += [str(v).strip() for v in df[col] if str(v).strip()]
+        return list(dict.fromkeys(names))
+
+    def sprint_names(self) -> list[str]:
+        """Every sprint named in S5 capacity rows and S1 planned sprints."""
+        names: list[str] = []
+        for sid, col in (("S5", "sprint"), ("S1", "targeted_sprint")):
+            df = self.table(sid)
+            if not df.empty and col in df.columns:
+                names += [str(v) for v in df[col] if v]
+        return list(dict.fromkeys(names))
 
     def capacity_rows(self, team: str) -> pd.DataFrame:
         df = self.table("S5")
@@ -161,6 +158,28 @@ class ContextSnapshot:
 
 
 # -- building --------------------------------------------------------------------------------------
+
+
+def initiative_from_row(r: dict, origin: str) -> Initiative:
+    """An S1 row (or an uploaded one, already mapped to S1 columns) as an Initiative."""
+    est = r.get("estimate_points")
+    return Initiative(
+        id=r["initiative_id"],
+        title=r["title"],
+        description=r.get("description", "") or "",
+        owning_team=r.get("owning_team", "") or "",
+        target_pi=(r.get("target_pi") or None),
+        art=(r.get("art") or None),
+        tshirt_size=str(r.get("tshirt_size") or "").strip().upper(),
+        estimate_points=None if est is None or pd.isna(est) else float(est),
+        origin=origin,
+        status=str(r.get("status") or ""),
+        priority=str(r.get("priority") or ""),
+        initiative_type=str(r.get("initiative_type") or ""),
+        business_outcome=str(r.get("business_outcome") or ""),
+        planned_sprint=str(r.get("targeted_sprint") or ""),
+        dependency_text=str(r.get("dependency") or ""),
+    )
 
 
 def _canonicalise(raw: RawData, resolver: EntityResolver, issues: list[str]) -> None:
@@ -254,7 +273,8 @@ def _records(raw: RawData) -> set[str]:
     for sid in ("S5", "S8"):
         df = raw.tables.get(sid)
         if df is not None:
-            out.update(f"{sid}:{r['team']}@{r['pi']}" for _, r in df.iterrows())
+            out.update(f"{sid}:{r['team']}@{r.get('pi', '')}" if r.get("pi") else f"{sid}:{r['team']}"
+                       for _, r in df.iterrows())
     df = raw.tables.get("S10")
     if df is not None:
         out.update(f"S10:{r['from_key']}->{r['to_key']}" for _, r in df.iterrows())
@@ -282,7 +302,7 @@ def _doc_owners(raw: RawData) -> dict[str, str]:
 
 
 def build_snapshot(settings: Settings, data_dir: Path | None = None) -> ContextSnapshot:
-    raw = load_raw(data_dir or settings.data_dir)
+    raw = load_raw(data_dir or settings.data_dir, settings.active_sources)
     t = raw.tables
 
     def col(sid: str, c: str) -> list[str]:
@@ -293,8 +313,11 @@ def build_snapshot(settings: Settings, data_dir: Path | None = None) -> ContextS
     initiatives = dict(zip(col("S1", "initiative_id"), col("S1", "title"))) if "S1" in t else {}
     s4 = t.get("S4")
     repo_ids = dict(zip(s4["repo_id"], s4["repo"])) if s4 is not None and "repo_id" in s4.columns else {}
+    s6 = t.get("S6")
+    team_names = ({n: tid for tid, n in zip(s6["team"], s6["team_name"]) if n}
+                  if s6 is not None and "team_name" in s6.columns else {})
     resolver = EntityResolver(teams, col("S7", "service"), col("S4", "repo"), initiatives, settings.fuzzy_threshold,
-                              repo_ids=repo_ids)
+                              repo_ids=repo_ids, team_names=team_names)
     issues: list[str] = []
     if not teams:
         issues.append("S6 team directory not loaded: team names are used as written, without resolution")
@@ -302,7 +325,7 @@ def build_snapshot(settings: Settings, data_dir: Path | None = None) -> ContextS
     # After canonicalisation, teams seen anywhere become resolvable too.
     all_teams = sorted({*teams, *(v for sid, c in _TEAM_COLUMNS.items() for v in col(sid, c))})
     resolver = EntityResolver(all_teams, col("S7", "service"), col("S4", "repo"), initiatives, settings.fuzzy_threshold,
-                              repo_ids=repo_ids)
+                              repo_ids=repo_ids, team_names=team_names)
 
     index = TextIndex(chunk_docs(raw.docs, settings.chunk_chars, settings.chunk_overlap))
     return ContextSnapshot(

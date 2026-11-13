@@ -49,13 +49,36 @@ def merge(state: AgentState, ctx: RunContext) -> dict:
         if _METHOD_RANK[cand.method] > _METHOD_RANK[d.method]:
             d.method, d.dep_type = cand.method, cand.dep_type
         d.directed = d.directed or cand.directed
+        d.declared = d.declared or cand.declared
     deps = list(merged.values())
     for d in deps:
         d.in_jira = in_jira(ctx.snapshot, d, links)
+    decided = _apply_planner(state, ctx, deps)
     known = sum(d.in_jira is True for d in deps)
     baseline = "Jira baseline (S10) not loaded" if links is None else f"{known} already linked in Jira"
-    ctx.emit("note", "merge", text=f"{len(state.candidate_deps)} candidates merged into {len(deps)} dependencies; {baseline}")
+    ctx.emit("note", "merge", text=f"{len(state.candidate_deps)} candidates merged into {len(deps)} dependencies; "
+                                   f"{baseline}" + (f"; {decided}" if decided else ""))
     return {"deps": deps}
+
+
+def _apply_planner(state: AgentState, ctx: RunContext, deps: list[Dependency]) -> str:
+    """A planner's notes and decisions from the previous run, by link key ("from->to"): a dismissed
+    link is rejected (and says so), a confirmed one becomes user-defined and passes the confidence gate."""
+    p = state.planner
+    confirmed = dismissed = 0
+    for d in deps:
+        key = f"{d.from_id}->{d.to_id}"
+        d.note = p.dependency_notes.get(key, d.note)
+        decision = p.dependency_decisions.get(key)
+        if decision == "dismissed":
+            d.decision, d.status = "dismissed", "rejected"
+            d.verification_note = "Dismissed by a planner" + (f": {d.note}" if d.note else "")
+            dismissed += 1
+        elif decision == "confirmed":
+            d.decision, d.declared = "confirmed", True
+            d.confidence = max(d.confidence, ctx.settings.confidence_threshold)
+            confirmed += 1
+    return (f"planner: {confirmed} confirmed, {dismissed} dismissed" if confirmed or dismissed else "")
 
 
 @node("verify", "Evidence verifier")
