@@ -1,6 +1,7 @@
+import { useState } from 'react'
 import { CHANGE, METHOD } from '../lib/deps'
 import type { DependencyRow } from '../types'
-import { ChangeBadge, LevelBadge, PathChain, VerdictBadge } from './Badges'
+import { LevelBadge, PathChain, VerdictBadge } from './Badges'
 
 interface Props {
   dep: DependencyRow
@@ -9,62 +10,81 @@ interface Props {
   compact?: boolean
 }
 
-/** Why a dependency is there, what it asks for, and how sure we are. */
+/**
+ * Why a dependency is there, kept short: the headline reason, then the evidence and the related links
+ * behind one click each. The row's own chips already show where it came from and what it asks for, so
+ * they are not repeated here.
+ */
 export function DepDetail({ dep, labelOf, compact = false }: Props) {
+  const [evidence, setEvidence] = useState(false)
+  const [also, setAlso] = useState(false)
+  const [way, setWay] = useState<string | null>(null)
   const mixed = new Set(dep.why.map((w) => w.changeType)).size > 1
   // Verdicts are per initiative and team: a link found only in data is confirmed by a stated one to the same team.
   const confirmedElsewhere = dep.verdict === 'confirmed' && !dep.methods.includes('explicit') && dep.alsoFoundAs.length > 0
+  const hops = dep.path.length > 2 // initiative -> initiative needs no path: the row title says it
+  const ways = dep.why.length
+  const summary = [ways > 1 && `Found ${ways} ways`, `${dep.evidenceCount} evidence item${dep.evidenceCount === 1 ? '' : 's'}`].filter(Boolean).join(' · ')
+
   return (
     <div className="dep-detail">
       <div className="dep-detail-badges">
-        <ChangeBadge type={dep.changeType} />
-        <LevelBadge level={dep.level} />
         <VerdictBadge verdict={dep.verdict} />
+        {dep.level !== 'initiative' && <LevelBadge level={dep.level} />}
+        {dep.status === 'low_confidence' && <span className="warn-text"><i className="ti ti-alert-triangle" aria-hidden="true" /> Low confidence</span>}
+        {dep.inJira != null && <span className="dep-jira"><i className="ti ti-ticket" aria-hidden="true" /> {dep.inJira ? 'In Jira' : 'Not in Jira'}</span>}
+        {compact && dep.toTeam && <span className="dep-jira"><i className="ti ti-users" aria-hidden="true" /> {dep.toTeam} team</span>}
       </div>
 
-      <div className="dep-detail-label">Why it is here</div>
-      <PathChain path={dep.path} />
+      {hops && <PathChain path={dep.path} />}
       <div className="dep-reason">{dep.reason}</div>
+      {!compact && <div className="dep-sum">{summary}</div>}
 
-      {!compact && dep.why.length > 1 && (
+      {!compact && (
         <>
-          <div className="dep-detail-label">Found {dep.why.length} ways</div>
-          {dep.why.map((w) => (
-            <div className="dep-why" key={w.method + w.text}>
-              <span className="dep-method">{METHOD[w.method] ?? w.method}</span>
-              <span className={`dep-why-change chg-text-${w.changeType}`}>{CHANGE[w.changeType].short}</span>
-              <span>{w.text}</span>
+          <button className="dep-toggle" aria-expanded={evidence} onClick={() => setEvidence((v) => !v)}>
+            <i className={`ti ${evidence ? 'ti-chevron-down' : 'ti-chevron-right'}`} aria-hidden="true" /> Evidence
+            <span className="dep-toggle-n">{dep.evidenceCount}</span>
+          </button>
+          {evidence && (
+            <div className="dep-ev">
+              {ways > 1 && dep.why.map((w) => {
+                const k = w.method + w.text
+                const on = way === k
+                return (
+                  <button className={`dep-ev-row${on ? ' open' : ''}`} key={k} aria-expanded={on} onClick={() => setWay(on ? null : k)}>
+                    <span className="dep-method">{METHOD[w.method] ?? w.method}</span>
+                    <span className={`dep-why-change chg-text-${w.changeType}`}>{CHANGE[w.changeType].short}</span>
+                    <span className="dep-ev-t">{w.text}</span>
+                    <i className={`ti ${on ? 'ti-chevron-down' : 'ti-chevron-right'}`} aria-hidden="true" />
+                  </button>
+                )
+              })}
+              {ways > 1 && mixed && <div className="dep-note">The ways disagree on what is needed; the link shows the biggest need ({CHANGE[dep.changeType].short.toLowerCase()}).</div>}
+              {ways > 1 && dep.evidence.length > 0 && <div className="dep-detail-label">Sources</div>}
+              {dep.evidence.map((e) => (
+                <div className="sources-item" key={e.text}><i className={`ti ${e.icon}`} aria-hidden="true" />{e.text}</div>
+              ))}
             </div>
-          ))}
-          {mixed && <div className="dep-note">The ways disagree on what is needed; the link shows the biggest need ({CHANGE[dep.changeType].short.toLowerCase()}).</div>}
+          )}
         </>
       )}
 
-      <div className="dep-facts">
-        <span title="Where the evidence came from">
-          <i className="ti ti-search" aria-hidden="true" /> {dep.methods.map((m) => METHOD[m] ?? m).join(' + ')}
-        </span>
-        <span title="Evidence items behind this dependency"><i className="ti ti-file-text" aria-hidden="true" /> {dep.evidenceCount} evidence item{dep.evidenceCount === 1 ? '' : 's'}</span>
-        {dep.toTeam && <span title="The team this lands on"><i className="ti ti-users" aria-hidden="true" /> {dep.toTeam} team</span>}
-        {dep.inJira != null && <span><i className="ti ti-ticket" aria-hidden="true" /> {dep.inJira ? 'Already linked in Jira' : 'Not linked in Jira'}</span>}
-        {dep.status === 'low_confidence' && <span className="warn-text"><i className="ti ti-alert-triangle" aria-hidden="true" /> Low confidence</span>}
-      </div>
-
       {dep.alsoFoundAs.length > 0 && labelOf && (
-        <div className="dep-also">
-          <i className="ti ti-link" aria-hidden="true" />
-          {confirmedElsewhere
-            ? `Confirmed because a stated link lands on the same team: ${dep.alsoFoundAs.map(labelOf).join('; ')}`
-            : `Same team, also found as: ${dep.alsoFoundAs.map(labelOf).join('; ')}`}
-        </div>
-      )}
-
-      {!compact && dep.evidence.length > 0 && (
         <>
-          <div className="dep-detail-label">Evidence</div>
-          {dep.evidence.map((e) => (
-            <div className="sources-item" key={e.text}><i className={`ti ${e.icon}`} aria-hidden="true" />{e.text}</div>
-          ))}
+          <button className="dep-toggle" aria-expanded={also} onClick={() => setAlso((v) => !v)}>
+            <i className={`ti ${also ? 'ti-chevron-down' : 'ti-chevron-right'}`} aria-hidden="true" /> Also found as
+            <span className="dep-toggle-n">{dep.alsoFoundAs.length}</span>
+          </button>
+          {also && (
+            <div className="dep-also">
+              <i className="ti ti-link" aria-hidden="true" />
+              <span>
+                {confirmedElsewhere && 'Confirmed because a stated link lands on the same team: '}
+                {dep.alsoFoundAs.map(labelOf).join('; ')}
+              </span>
+            </div>
+          )}
         </>
       )}
     </div>

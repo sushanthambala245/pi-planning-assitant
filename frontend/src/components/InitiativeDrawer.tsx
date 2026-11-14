@@ -1,4 +1,4 @@
-import { useEffect, useState, type ComponentProps } from 'react'
+import { useEffect, useState, type ComponentProps, type ReactNode } from 'react'
 import { domainColor } from '../data/domains'
 import { plural } from '../lib/deps'
 import { planStatus } from '../lib/plan'
@@ -6,7 +6,7 @@ import type { PlannerApi } from '../lib/planner'
 import type { Analysis, DependencyRow, Plan, Risk } from '../types'
 import { NoteField, PriorityChip, QuarterChip, SizeChip, SizeSelect } from './Chips'
 import { CommentsPanel } from './CommentsPanel'
-import { DepRow } from './SidePanel'
+import { DependencyItem } from './DependencyList'
 import { Tip } from './Tip'
 
 export type DrawerTab = 'details' | 'comments'
@@ -26,6 +26,8 @@ interface Props {
   openComments: number
   comments: Omit<ComponentProps<typeof CommentsPanel>, 'initiativeTitle'>
   planner: PlannerApi
+  /** A flag shown before a dependency's names, e.g. the provider team being over capacity. */
+  flagFor?: (d: DependencyRow) => ReactNode
   onClose: () => void
   onOpenRisk: (id: string) => void
   onSelectInitiative: (id: string) => void
@@ -37,7 +39,7 @@ interface Props {
  * quarter plan and why, what it waits for and unblocks, its dependencies and risks, the planner's input
  * for the next run, and the live comments about it.
  */
-export function InitiativeDrawer({ analysis, plan, initiativeId, tab, onTab, deps, risks, critical, commentCount, openComments, comments, planner, onClose, onOpenRisk, onSelectInitiative, labelOf }: Props) {
+export function InitiativeDrawer({ analysis, plan, initiativeId, tab, onTab, deps, risks, critical, commentCount, openComments, comments, planner, flagFor, onClose, onOpenRisk, onSelectInitiative, labelOf }: Props) {
   const [openDep, setOpenDep] = useState<string | null>(null)
   useEffect(() => setOpenDep(null), [initiativeId])
 
@@ -156,7 +158,8 @@ export function InitiativeDrawer({ analysis, plan, initiativeId, tab, onTab, dep
             <div className="drawer-section">
               <div className="drawer-section-label">Dependencies ({deps.length}{item ? ` · ${item.declaredLinks} declared, ${item.hiddenLinks} hidden` : ''})</div>
               {deps.map((d) => (
-                <DepRow key={d.key} dep={d} open={openDep === d.key} onToggle={() => setOpenDep((o) => (o === d.key ? null : d.key))} labelOf={labelOf} />
+                <DependencyItem key={d.key} dep={d} open={openDep === d.key} onToggle={() => setOpenDep((o) => (o === d.key ? null : d.key))}
+                  labelOf={labelOf} planner={planner} flag={flagFor?.(d)} />
               ))}
             </div>
           )}

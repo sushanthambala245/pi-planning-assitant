@@ -1,25 +1,14 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
 
-/** A collapsible section of the current screen, listed in the side navigation. */
-export interface SectionMeta {
-  id: string
-  title: string
-  icon: string
-  count?: number | string
-}
-
+/** Which collapsible sections are open, remembered in this browser. */
 interface SectionsApi {
-  sections: SectionMeta[]
-  register: (meta: SectionMeta) => void
-  unregister: (id: string) => void
   isOpen: (id: string, fallback: boolean) => boolean
   setOpen: (id: string, open: boolean) => void
-  /** Open a section and scroll it into view. */
-  jump: (id: string) => void
 }
 
 const Ctx = createContext<SectionsApi | null>(null)
-const KEY = 'pi-sections-open'
+// v2: sections now start collapsed, so an old saved "open" state must not carry over.
+const KEY = 'pi-sections-open-v2'
 
 function readOpen(): Record<string, boolean> {
   try {
@@ -31,26 +20,7 @@ function readOpen(): Record<string, boolean> {
 }
 
 export function SectionsProvider({ children }: { children: ReactNode }) {
-  const [map, setMap] = useState<Map<string, SectionMeta>>(new Map())
   const [open, setOpenMap] = useState<Record<string, boolean>>(readOpen)
-
-  const register = useCallback((meta: SectionMeta) => {
-    setMap((prev) => {
-      const cur = prev.get(meta.id)
-      if (cur && cur.title === meta.title && cur.icon === meta.icon && cur.count === meta.count) return prev
-      const next = new Map(prev)
-      next.set(meta.id, meta) // an existing key keeps its place, so the order stays the page order
-      return next
-    })
-  }, [])
-  const unregister = useCallback((id: string) => {
-    setMap((prev) => {
-      if (!prev.has(id)) return prev
-      const next = new Map(prev)
-      next.delete(id)
-      return next
-    })
-  }, [])
   const setOpen = useCallback((id: string, value: boolean) => {
     setOpenMap((prev) => {
       const next = { ...prev, [id]: value }
@@ -59,13 +29,7 @@ export function SectionsProvider({ children }: { children: ReactNode }) {
     })
   }, [])
   const isOpen = useCallback((id: string, fallback: boolean) => open[id] ?? fallback, [open])
-  const jump = useCallback((id: string) => {
-    setOpen(id, true)
-    window.setTimeout(() => document.getElementById(`sec-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 30)
-  }, [setOpen])
-
-  const api = useMemo(() => ({ sections: [...map.values()], register, unregister, isOpen, setOpen, jump }),
-    [map, register, unregister, isOpen, setOpen, jump])
+  const api = useMemo(() => ({ isOpen, setOpen }), [isOpen, setOpen])
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>
 }
 

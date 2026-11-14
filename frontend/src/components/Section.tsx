@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { useSections } from '../lib/sections'
 import { InfoTip } from './Tip'
 
@@ -6,14 +6,16 @@ interface Props {
   id: string
   title: string
   icon: string
-  /** Shown as a badge next to the title and in the side navigation. */
+  /** A badge next to the title. */
   count?: number | string
+  /** One line shown beside the title while closed, so a closed section still says what is inside. */
+  summary?: ReactNode
+  /** A one-line subtitle under the title while open. */
+  sub?: ReactNode
   /** An in-depth explanation behind the (i). */
   tip?: ReactNode
-  /** A one-line subtitle under the title. */
-  sub?: ReactNode
   defaultOpen?: boolean
-  /** false: always open (still listed in the side navigation). */
+  /** false: always open. */
   collapsible?: boolean
   actions?: ReactNode
   tone?: 'accent' | 'plain'
@@ -21,11 +23,9 @@ interface Props {
   children: ReactNode
 }
 
-/** A collapsible, anchored section. It lists itself in the side navigation while it is on screen. */
-export function Section({ id, title, icon, count, tip, sub, defaultOpen = true, collapsible = true, actions, tone = 'plain', className, children }: Props) {
-  const { register, unregister, isOpen, setOpen } = useSections()
-  useEffect(() => { register({ id, title, icon, count }) }, [id, title, icon, count, register])
-  useEffect(() => () => unregister(id), [id, unregister])
+/** A collapsible section; give it a `summary` and `defaultOpen={false}` to keep a closed section informative. */
+export function Section({ id, title, icon, count, summary, sub, tip, defaultOpen = true, collapsible = true, actions, tone = 'plain', className, children }: Props) {
+  const { isOpen, setOpen } = useSections()
   const open = !collapsible || isOpen(id, defaultOpen)
   const head = (
     <>
@@ -33,6 +33,7 @@ export function Section({ id, title, icon, count, tip, sub, defaultOpen = true, 
       <span className="sec-icon"><i className={`ti ${icon}`} aria-hidden="true" /></span>
       <span className="sec-title">{title}</span>
       {count != null && <span className="sec-count">{count}</span>}
+      {summary && !open && <span className="sec-summary">{summary}</span>}
     </>
   )
 

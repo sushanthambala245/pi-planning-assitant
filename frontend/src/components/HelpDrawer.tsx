@@ -12,12 +12,12 @@ const screenInfo: Record<Screen, { title: string; icon: string; body: string }> 
   pipeline: {
     title: '2 · Analysis',
     icon: 'ti-topology-star-3',
-    body: 'The agents at work, in collapsible sections. Agent workflow: click an agent for what it read, found and decided. By initiative: one card per initiative, grouped by release train, with the systems it touches, what it needs from other teams and its risks. All findings: every finding, filterable by kind.',
+    body: 'The agents at work. Agent workflow: click an agent for what it read, found and decided. By initiative (closed until you open it): one card per initiative, grouped by release train; click a card for the systems it touches and who owns them, everything the agents found about it, and its risks. Knowledge sources used lists the files the run read.',
   },
   results: {
     title: '3 · Results',
     icon: 'ti-chart-dots',
-    body: 'At a glance gives the three use cases in numbers and what to resolve before PI planning; click a tile or an item to jump to its section. 1 · Declared: the dependencies the teams wrote down and the target-quarter conflicts. 2 · Hidden: the ones nobody declared, grouped by what they do to the plan; Keep or Dismiss each one and add a note. 3 · Delivery timeline: status chips (what moved, teams over capacity, unsized work, risks, open comments, checks not run, what was left out) open their detail on click; below them, the Timeline, Graph and Risks views. Click a bar for why it lands where it does, to change its size or add a note for the rerun, and to comment on it. Rerun with updates sends your input back to the agents.',
+    body: 'The delivery timeline is the answer: one bar per initiative across the quarters, with Graph and Risks beside it. Chips above it appear only for what the chart cannot show and only when there is something: target-quarter conflicts, teams over capacity, open comments, checks that did not run, initiatives left out; each opens its detail on click. Click a bar for why it lands where it does, its declared and hidden dependencies (Keep or Dismiss each one, with a note), its risks, its size and a note for the rerun, and to comment on it. Rerun with updates sends your input back to the agents.',
   },
   dashboard: {
     title: '4 · Decisions',
@@ -27,9 +27,8 @@ const screenInfo: Record<Screen, { title: string; icon: string; body: string }> 
 }
 
 const buttons: { screen: Screen | 'all'; icon: string; name: string; what: string }[] = [
-  { screen: 'all', icon: 'ti-layout-sidebar-left-collapse', name: 'Left pane', what: 'Jump to another screen or to a section of this one. Collapse it to a strip of icons; your choice is remembered.' },
   { screen: 'all', icon: 'ti-circle-number-1', name: 'Step tabs (Intake · Analysis · Results · Decisions)', what: 'Move between the four screens. A tab is greyed out until it has something to show.' },
-  { screen: 'all', icon: 'ti-chevron-down', name: 'Section headers', what: 'Click a header to collapse or expand that section. The (i) next to it explains the section in depth.' },
+  { screen: 'all', icon: 'ti-chevron-down', name: 'Section headers', what: 'Click a header to collapse or expand that section; a closed section shows a one-line summary. The (i) next to it explains the section in depth.' },
   { screen: 'all', icon: 'ti-info-circle', name: 'Tooltips', what: 'Hover (or focus with Tab) any number, chip or badge for how it is worked out and where the data comes from.' },
   { screen: 'all', icon: 'ti-palette', name: 'Colour theme', what: 'Switch the palette: Accenture (default), Accenture dark and others. Remembered in this browser.' },
   { screen: 'all', icon: 'ti-help', name: 'Help', what: 'Opens this guide.' },
@@ -41,11 +40,11 @@ const buttons: { screen: Screen | 'all'; icon: string; name: string; what: strin
   { screen: 'intake', icon: 'ti-reload', name: 'Reload from the data folder', what: 'With the backend, sources come from its data folder: drop in updated files, then reload. Without it, Add knowledge source registers uploaded files.' },
   { screen: 'intake', icon: 'ti-player-play', name: 'Analyse', what: 'Starts the agents for the ticked initiatives (with any notes you saved) and opens the Analysis screen.' },
   { screen: 'pipeline', icon: 'ti-circle-dot', name: 'Agent circles', what: 'Hover for what the agent does; click for its inputs, outputs, notes and findings.' },
-  { screen: 'pipeline', icon: 'ti-filter', name: 'Initiative filter · kind chips', what: 'Show one initiative, or only some kinds of finding (systems, stated, inferred, risks…).' },
+  { screen: 'pipeline', icon: 'ti-filter', name: 'Initiative filter', what: 'Show one initiative only.' },
   { screen: 'pipeline', icon: 'ti-refresh', name: 'Run again · Replay', what: 'For a backend run, starts a new run of the same initiatives with your latest input. For an uploaded file, replays it.' },
-  { screen: 'results', icon: 'ti-layout-dashboard', name: 'At a glance tiles · Before PI planning', what: 'The three use cases in numbers, and the short list of what to resolve. Click to jump to the section, or to open the matching status chip on the timeline.' },
+  { screen: 'results', icon: 'ti-flag', name: 'Status chips', what: 'Only what the timeline cannot show, and only when it is not zero: conflicts in target quarters, teams over capacity, open comments, checks not run, initiatives left out. Click one for its detail.' },
   { screen: 'results', icon: 'ti-check', name: 'Keep · Dismiss (on a dependency)', what: 'Keep a hidden dependency the teams confirm (it becomes user-defined) or dismiss one that is not real. The next run uses your call.' },
-  { screen: 'results', icon: 'ti-notes', name: 'Notes · size', what: 'Open a dependency, or click a bar on the timeline, to add a note or change the T-shirt size. A note like “blocked on INIT-005” adds a dependency on the next run.' },
+  { screen: 'results', icon: 'ti-notes', name: 'Notes · size', what: 'Click a bar on the timeline, then open a dependency or use the size and note fields, to add a note or change the T-shirt size. A note like “blocked on INIT-005” adds a dependency on the next run.' },
   { screen: 'results', icon: 'ti-timeline', name: 'Timeline · Graph · Risks', what: 'The views under the status chips. The timeline has one bar per initiative across the quarters’ sprints: the dashed box is its targeted quarter, a red edge means it ends after it, a hatched bar is not sized from the data, an outlined one is on the longest chain of waits. Group it by quarter, dependency step, team or ART; the corner button shows it full screen.' },
   { screen: 'results', icon: 'ti-message-circle', name: 'Comments (bubble on each row)', what: 'Live feedback on an initiative: a concern, question, decision or action, with who raised it. Everyone on the same run sees the thread (it refreshes every few seconds); resolve a comment when it is handled. A rerun carries the comments over. Comments are for discussion; the agents read only the notes.' },
   { screen: 'results', icon: 'ti-refresh', name: 'Rerun with updates', what: 'Starts a new run of the same initiatives with your notes, sizes, quarter placements and keep / dismiss decisions. The current results stay until it finishes.' },
@@ -102,7 +101,7 @@ export function HelpDrawer({ screen, onClose }: Props) {
           {tab === 'screens' && (
             <>
               <p className="help-intro">
-                The assistant works in four steps. Use the numbered tabs in the header or the left pane to move between them at any time.
+                The assistant works in four steps. Use the numbered tabs in the header to move between them at any time.
               </p>
               {(Object.keys(screenInfo) as Screen[]).map((id) => (
                 <div key={id} className={`help-card${id === screen ? ' here' : ''}`}>

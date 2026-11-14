@@ -3,14 +3,13 @@ import { api, commentsCsvUrl, isLoaded, toInitiative, toSource, type ReviewBody,
 import { HelpDrawer } from './components/HelpDrawer'
 import { Notices } from './components/Notices'
 import { ReviewPanel } from './components/ReviewPanel'
-import { SideNav } from './components/SideNav'
 import { Tip } from './components/Tip'
 import { TopBar } from './components/TopBar'
 import { useComments } from './hooks/useComments'
 import { normalizeAnalysis } from './lib/analysis'
 import { plural } from './lib/deps'
 import { ingestFiles, notice } from './lib/ingest'
-import { EMPTY_PLANNER, describeChanges, useStored, type Scale } from './lib/plan'
+import { EMPTY_PLANNER, describeChanges, type Scale } from './lib/plan'
 import { usePlannerApi, usePlannerState } from './lib/planner'
 import { DEFAULT_READY, isReady } from './lib/readiness'
 import { SectionsProvider } from './lib/sections'
@@ -89,7 +88,6 @@ export default function App() {
   const [run, setRun] = useState<Run>({ status: 'idle', current: 0 })
   const [notices, setNotices] = useState<Notice[]>([])
   const [helpOpen, setHelpOpen] = useState(false)
-  const [nav, setNav] = useStored('pi-sidenav', { collapsed: false })
   /** A backend answered: initiatives and sources come from it, and Analyse runs the agents there. */
   const [connected, setConnected] = useState(false)
   /** The current analysis comes from a backend run (polled while it runs), not a replayed file. */
@@ -560,9 +558,7 @@ export default function App() {
 
   return (
     <SectionsProvider>
-      <div className={`page${nav.collapsed ? ' nav-collapsed' : ''}`}>
-        <SideNav screen={screen} enabled={enabled} onNavigate={setScreen} collapsed={nav.collapsed}
-          onToggle={() => setNav((n) => ({ ...n, collapsed: !n.collapsed }))} />
+      <div className="page">
         <div className="screen">
           <TopBar current={screen} enabled={enabled} onNavigate={setScreen} onHelp={() => setHelpOpen(true)}>
             {actions}
@@ -612,7 +608,6 @@ export default function App() {
           {screen === 'results' && (
             <ResultsScreen
               analysis={analysis}
-              initiativeCount={analysedCount}
               onViewAnalysis={() => setScreen('pipeline')}
               onOpenDashboard={() => setScreen('dashboard')}
               onBack={() => setScreen('intake')}

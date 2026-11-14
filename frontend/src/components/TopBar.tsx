@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import type { Screen } from '../types'
-import { SCREENS } from './SideNav'
+import { SCREENS } from '../lib/screens'
 import { ThemePicker } from './ThemePicker'
 import { Tip } from './Tip'
 

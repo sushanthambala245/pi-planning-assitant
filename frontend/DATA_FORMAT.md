@@ -107,7 +107,7 @@ Every field is optional, but at least one must be present.
   ],
   "steps": [{ "step": 1, "initiativeIds": ["INI-2"], "label": "Partner API upgrade", "why": "…", "inCycle": false }],
 
-  // --- optional; the counts behind the Results screen's "At a glance" ---
+  // --- optional; the counts behind the Results screen's chips ---
   "summary": { "text": "54 initiatives across 34 teams: 97 declared dependencies, 214 hidden ones found …", "method": "template" },
   "notChecked": [                          // risk checks that did not run, or ran on partial data
     { "code": "DRI-X-007", "name": "Dependency only in an informal channel", "reason": "Needs Slack snippets (M3), which is not part of the knowledge base", "partial": false }

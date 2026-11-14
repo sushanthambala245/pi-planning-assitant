@@ -4,22 +4,27 @@ import type { Analysis } from '../types'
 import { StatusChip, VelocityChip } from './Chips'
 import { Tip } from './Tip'
 
-// The status chips over the delivery timeline (after Bhasker Rao's Headline, results-timeline-comments):
-// a few chips, each opening its detail on click, so nothing is said twice on the page.
+// The status chips over the delivery timeline (after Bhasker Rao's Headline, results-timeline-comments).
+// A chip appears only for what the chart cannot show and only when its number is not zero: spills, unsized
+// work, risks and comment counts are already on the bars, the Risks tab and the row bubbles.
 
-export type Detail = 'moved' | 'capacity' | 'size' | 'risks' | 'comments' | 'jira' | 'gaps' | 'readiness' | 'why' | 'review'
+const CONFLICT = {
+  later_quarter: { label: 'Later quarter', icon: 'ti-arrows-cross', hint: 'The provider is targeted at a later quarter than the initiative that waits for it, so the plan as written cannot hold: pull the provider forward or move the consumer after it.' },
+  too_tight: { label: 'Tight quarter', icon: 'ti-hourglass-high', hint: 'At its team’s velocity the provider is still running when the consumer’s quarter starts: both are targeted at that quarter, or the provider spills into it from an earlier one. The consumer can only start after it, and then cannot finish inside its quarter. Start the provider first thing, split the work, or move the consumer.' },
+  sprint: { label: 'Sprint overlap', icon: 'ti-calendar-x', hint: 'The consumer is planned to start before its provider is planned to finish.' },
+} as const
+
+export type Detail = 'conflicts' | 'capacity' | 'comments' | 'gaps' | 'readiness' | 'review'
 
 interface Props {
   analysis: Analysis
   openComments: number
-  /** The chip whose detail is open (controlled, so "Before PI planning" can open one too). */
+  /** The chip whose detail is open. */
   open: Detail | null
   onOpen: (d: Detail | null) => void
   onShowOpenComments: () => void
-  onShowRisks: () => void
   onSelectInitiative: (id: string) => void
   onOpenDashboard: () => void
-  onViewAnalysis: () => void
   /** The review and export controls, when the run can be reviewed. */
   review?: ReactNode
   /** Download link for every comment on the backend run (CSV). */
@@ -28,46 +33,29 @@ interface Props {
 
 type Chip = { id: Detail; icon: string; text: string; tone: 'd' | 'w' | 'a' | 'n'; tip: string }
 
-export function StatusChips({ analysis, openComments, open, onOpen, onShowOpenComments, onShowRisks, onSelectInitiative, onOpenDashboard, onViewAnalysis, review, commentsCsv }: Props) {
-  const { steps, dependencies: deps, notChecked, risks, plan, readiness: r } = analysis
+export function StatusChips({ analysis, openComments, open, onOpen, onShowOpenComments, onSelectInitiative, onOpenDashboard, review, commentsCsv }: Props) {
+  const { notChecked, plan, readiness: r } = analysis
   const toggle = (d: Detail) => onOpen(open === d ? null : d)
   const c = plan?.counts
   const items = plan?.items ?? []
-  const later = items.filter((i) => i.targetQuarter && i.pi !== i.targetQuarter)
-  const spills = items.filter((i) => i.spills)
-  const unsized = items.filter((i) => i.sizeSource === 'assumed' || i.sizeSource === 'none')
+  const conflicts = plan?.conflicts ?? []
   const over = (plan?.teams ?? []).flatMap((t) => Object.entries(t.plannedByPi)
     .map(([q, pts]) => ({ team: t, q, pts, cap: t.capacityByPi[q] ?? t.quarterCapacity }))
     .filter((x) => x.cap && x.pts > x.cap))
-  const notInJira = deps.filter((d) => d.inJira === false).length
   const skipped = notChecked.filter((n) => !n.partial).length
-  const high = risks.filter((x) => x.severity === 'High').length
 
   const chips: Chip[] = [
-    ...(later.length || spills.length ? [{
-      id: 'moved' as const, icon: 'ti-calendar-time', tone: later.length ? 'd' as const : 'w' as const,
-      text: [later.length && `${later.length} start a quarter later`, spills.length && `${spills.length} spill over`].filter(Boolean).join(' · '),
-      tip: 'Against the quarter each team targeted: some start later because what they wait for lands later or their team is full, and some finish after their quarter ends.',
+    ...(conflicts.length ? [{
+      id: 'conflicts' as const, icon: 'ti-arrows-cross', tone: 'd' as const, text: `${plural(conflicts.length, 'conflict')} in target quarters`,
+      tip: 'A team targeted a quarter that cannot hold once what it waits for, and its own team’s velocity, are counted.',
     }] : []),
     ...(over.length ? [{
       id: 'capacity' as const, icon: 'ti-gauge', tone: 'd' as const, text: `${plural(c?.teamsOver ?? new Set(over.map((o) => o.team.id)).size, 'team')} over capacity`,
       tip: 'The T-shirt sizes targeted at a quarter add up to more story points than the team can deliver in it (team capacity file). The plan moves the lowest-priority work later.',
     }] : []),
-    ...(unsized.length ? [{
-      id: 'size' as const, icon: 'ti-ruler-measure', tone: 'w' as const, text: `${unsized.length} not sized`,
-      tip: `No T-shirt size in the initiatives file: scheduled as ${plan?.defaultSize ?? 'M'} until someone sizes it.`,
-    }] : []),
-    ...(risks.length ? [{
-      id: 'risks' as const, icon: 'ti-flag', tone: high ? 'd' as const : 'w' as const, text: `${plural(risks.length, 'risk flag')}${high ? ` · ${high} high` : ''}`,
-      tip: 'Flags from the Dependency Risk Index rules: plan conflicts, missing owners, contracts, deprecated systems, capacity and cycles.',
-    }] : []),
-    {
-      id: 'comments', icon: 'ti-message-circle', tone: openComments ? 'a' : 'n', text: plural(openComments, 'open comment'),
+    ...(openComments ? [{
+      id: 'comments' as const, icon: 'ti-message-circle', tone: 'a' as const, text: plural(openComments, 'open comment'),
       tip: 'Live feedback on the initiatives, per run: concerns, questions, decisions and actions, with who raised them.',
-    },
-    ...(notInJira ? [{
-      id: 'jira' as const, icon: 'ti-ticket', tone: 'w' as const, text: `${notInJira} not in Jira`,
-      tip: 'Dependency links with no Jira blocked-by link. Approving the run exports them as link proposals.',
     }] : []),
     ...(notChecked.length ? [{
       id: 'gaps' as const, icon: 'ti-eye-off', tone: 'w' as const, text: `${skipped || notChecked.length} check${(skipped || notChecked.length) === 1 ? '' : 's'} not run`,
@@ -93,9 +81,6 @@ export function StatusChips({ analysis, openComments, open, onOpen, onShowOpenCo
                 </button>
               </Tip>
             ))}
-            <button className={`link-btn${open === 'why' ? ' on' : ''}`} aria-expanded={open === 'why'} onClick={() => toggle('why')}>
-              Why this order?
-            </button>
           </div>
         </div>
         {review && (
@@ -109,22 +94,22 @@ export function StatusChips({ analysis, openComments, open, onOpen, onShowOpenCo
         <div className="headline-detail" role="region" aria-label="Detail">
           <button className="icon-btn detail-close" aria-label="Close detail" onClick={() => onOpen(null)}><i className="ti ti-x" aria-hidden="true" /></button>
 
-          {open === 'moved' && (
+          {open === 'conflicts' && (
             <>
-              {later.length > 0 && <>
-                <p><b>{plural(later.length, 'initiative')}</b> start in a later quarter than the team targeted:</p>
-                <ul className="detail-list">
-                  {later.map((i) => (
-                    <li key={i.id}><button className="link-btn inline" onClick={() => pick(i.id)}>{i.title}</button> · targeted {i.targetQuarter}, starts {i.startLabel}{i.waitsFor.length ? ' (waits for something that lands later)' : ' (its team is full)'}</li>
-                  ))}
-                </ul>
-              </>}
-              {spills.length > 0 && <>
-                <p><b>{plural(spills.length, 'initiative')}</b> finish after their target quarter at their team’s velocity:</p>
-                <ul className="detail-list">
-                  {spills.map((i) => <li key={i.id}><button className="link-btn inline" onClick={() => pick(i.id)}>{i.title}</button> · {i.targetQuarter}, ends {i.finishLabel}</li>)}
-                </ul>
-              </>}
+              <p>These target quarters cannot hold as written:</p>
+              <ul className="detail-list">
+                {conflicts.map((cf) => (
+                  <li key={`${cf.provider}-${cf.consumer}`}>
+                    <Tip title={CONFLICT[cf.kind].label} content={CONFLICT[cf.kind].hint}>
+                      <span className="pchip imp-orders"><i className={`ti ${CONFLICT[cf.kind].icon}`} aria-hidden="true" /> {CONFLICT[cf.kind].label}</span>
+                    </Tip>{' '}
+                    <button className="link-btn inline" onClick={() => pick(cf.consumer)}>{cf.consumerLabel}</button> ({cf.consumerQuarter}) waits for{' '}
+                    <button className="link-btn inline" onClick={() => pick(cf.provider)}>{cf.providerLabel}</button> ({cf.providerQuarter || cf.providerFinishLabel})
+                    {cf.kind === 'too_tight' && <>: the provider finishes {cf.providerFinishLabel}, so it would end {cf.consumerFinishLabel}</>}
+                    {' · '}<span className="muted">{cf.declared ? 'declared' : 'hidden'} dependency · recommended start {cf.recommendedStart}</span>
+                  </li>
+                ))}
+              </ul>
               <button className="btn btn-ghost btn-sm" onClick={onOpenDashboard}><i className="ti ti-layout-kanban" aria-hidden="true" /> Decide quarters</button>
             </>
           )}
@@ -145,20 +130,6 @@ export function StatusChips({ analysis, openComments, open, onOpen, onShowOpenCo
               <button className="btn btn-ghost btn-sm" onClick={onOpenDashboard}><i className="ti ti-layout-kanban" aria-hidden="true" /> Decide quarters</button>
             </>
           )}
-          {open === 'size' && (
-            <>
-              <p>Not sized in the data, so scheduled as {plan?.defaultSize ?? 'M'}. Open one to set its size for the next run:</p>
-              <ul className="detail-list">
-                {unsized.map((i) => <li key={i.id}><button className="link-btn inline" onClick={() => pick(i.id)}>{i.title}</button> · {i.teamName}</li>)}
-              </ul>
-            </>
-          )}
-          {open === 'risks' && (
-            <>
-              <p>{plural(risks.length, 'risk')} flagged by the rules that ran{high ? `, ${high} of them high` : ''}.</p>
-              <button className="btn btn-ghost btn-sm" onClick={() => { onShowRisks(); onOpen(null) }}>Show the risks</button>
-            </>
-          )}
           {open === 'comments' && (
             <>
               <p>{openComments ? `${plural(openComments, 'comment')} still open.` : 'No open comments yet. Click the bubble on any row of the timeline to add one.'}</p>
@@ -167,9 +138,6 @@ export function StatusChips({ analysis, openComments, open, onOpen, onShowOpenCo
                 {commentsCsv && <a className="btn btn-ghost btn-sm" href={commentsCsv} download><i className="ti ti-message-down" aria-hidden="true" /> Download all comments (CSV)</a>}
               </div>
             </>
-          )}
-          {open === 'jira' && (
-            <p><b>{notInJira}</b> of {plural(deps.length, 'dependency link')} {notInJira === 1 ? 'has' : 'have'} no Jira blocked-by link. Approving the run exports them as link proposals; nothing is written to Jira.</p>
           )}
           {open === 'gaps' && (
             <>
@@ -195,17 +163,6 @@ export function StatusChips({ analysis, openComments, open, onOpen, onShowOpenCo
                 )
               })}
               {r.readyNotAnalysed.length > 0 && <p className="detail-note">{plural(r.readyNotAnalysed.length, 'ready initiative')} not ticked on Intake: {r.readyNotAnalysed.join(', ')}</p>}
-            </>
-          )}
-          {open === 'why' && (
-            <>
-              <p>Every initiative starts no earlier than its target quarter, the sprint after everything it waits for has finished, and when its team has room, higher priority first. The dependency order alone, as steps:</p>
-              <ol className="detail-steps">
-                {steps.map((s) => (
-                  <li key={s.step}><b>Step {s.step}</b> {s.initiativeIds.length > 6 ? `${plural(s.initiativeIds.length, 'initiative')} that wait on nothing earlier` : s.label}{s.inCycle ? ' (cycle: break it first)' : ''}{s.why ? `: ${s.why}` : ''}</li>
-                ))}
-              </ol>
-              <button className="link-btn" onClick={onViewAnalysis}><i className="ti ti-topology-star-3" aria-hidden="true" /> How was this analysed?</button>
             </>
           )}
           {open === 'review' && review}

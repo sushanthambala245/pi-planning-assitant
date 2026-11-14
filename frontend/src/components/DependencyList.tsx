@@ -18,6 +18,26 @@ interface RowProps {
   flag?: ReactNode
 }
 
+/** Keep or dismiss one dependency for the next run; pressing the active button again clears the choice. */
+function DecisionButtons({ decision, onSet, compact = false }: { decision: string; onSet: (d: '' | 'confirmed' | 'dismissed') => void; compact?: boolean }) {
+  return (
+    <div className={`seg${compact ? ' dl-quick' : ''}`} role="group" aria-label="Keep or dismiss this dependency">
+      <Tip title="Keep" content="The teams confirm it. It becomes user-defined (provenance: Planner) and always passes the confidence check, so it keeps ordering the plan.">
+        <button className={`seg-btn${decision === 'confirmed' ? ' active' : ''}`} aria-pressed={decision === 'confirmed'}
+          onClick={() => onSet(decision === 'confirmed' ? '' : 'confirmed')}>
+          <i className="ti ti-check" aria-hidden="true" /> Keep
+        </button>
+      </Tip>
+      <Tip title="Dismiss" content="Not a real dependency. The next run rejects it (and says a planner dismissed it), so it no longer orders the plan or raises risks. Your note is kept as the reason.">
+        <button className={`seg-btn${decision === 'dismissed' ? ' active' : ''}`} aria-pressed={decision === 'dismissed'}
+          onClick={() => onSet(decision === 'dismissed' ? '' : 'dismissed')}>
+          <i className="ti ti-x" aria-hidden="true" /> Dismiss
+        </button>
+      </Tip>
+    </div>
+  )
+}
+
 /** One dependency link: what it is, where it came from, what it does to the plan; open for the evidence and notes. */
 export function DependencyItem({ dep, open, onToggle, labelOf, planner, flag }: RowProps) {
   const decision = planner?.input.dependencyDecisions[dep.key] ?? ''
@@ -42,6 +62,7 @@ export function DependencyItem({ dep, open, onToggle, labelOf, planner, flag }: 
               <i className="ti ti-notes dl-noted" aria-label="Has planner input" />
             </Tip>
           )}
+          {!open && planner && <DecisionButtons compact decision={decision} onSet={(d) => planner.setDecision(dep.key, d)} />}
         </span>
       </div>
       {!open && <div className="dl-reason">{dep.reason}</div>}
@@ -54,20 +75,7 @@ export function DependencyItem({ dep, open, onToggle, labelOf, planner, flag }: 
                 <span>Your call for the next run</span>
                 {sentDecision && <span className="dl-sent">This run used: {sentDecision === 'confirmed' ? 'Keep' : 'Dismiss'}</span>}
               </div>
-              <div className="seg" role="group" aria-label="Keep or dismiss this dependency">
-                <Tip title="Keep" content="The teams confirm it. It becomes user-defined (provenance: Planner) and always passes the confidence check, so it keeps ordering the plan.">
-                  <button className={`seg-btn${decision === 'confirmed' ? ' active' : ''}`} aria-pressed={decision === 'confirmed'}
-                    onClick={() => planner.setDecision(dep.key, decision === 'confirmed' ? '' : 'confirmed')}>
-                    <i className="ti ti-check" aria-hidden="true" /> Keep
-                  </button>
-                </Tip>
-                <Tip title="Dismiss" content="Not a real dependency. The next run rejects it (and says a planner dismissed it), so it no longer orders the plan or raises risks. Your note is kept as the reason.">
-                  <button className={`seg-btn${decision === 'dismissed' ? ' active' : ''}`} aria-pressed={decision === 'dismissed'}
-                    onClick={() => planner.setDecision(dep.key, decision === 'dismissed' ? '' : 'dismissed')}>
-                    <i className="ti ti-x" aria-hidden="true" /> Dismiss
-                  </button>
-                </Tip>
-              </div>
+              <DecisionButtons decision={decision} onSet={(d) => planner.setDecision(dep.key, d)} />
               <NoteField value={note} onChange={(t) => planner.setDepNote(dep.key, t)}
                 placeholder="Note for this link (why keep or dismiss, what the teams agreed)…"
                 hint="Saved in this browser and sent with the next run." />

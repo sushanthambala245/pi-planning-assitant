@@ -31,7 +31,7 @@ export function AgentPipeline({ agents, selectedId, onSelect }: Props) {
                 <i className={`ti ${a.state === 'done' ? 'ti-check' : a.state === 'active' ? 'ti-loader-2' : a.state === 'failed' ? 'ti-alert-triangle' : a.icon}`} aria-hidden="true" />
               </div>
               <div className="agent-name">{a.name}</div>
-              <div className={`agent-status ${a.state}`}>{statusLabel[a.state]}</div>
+              <div className={`agent-status ${a.state}`}>{a.state === 'done' ? ' ' : statusLabel[a.state]}</div>
             </button>
           </Tip>
         ))}

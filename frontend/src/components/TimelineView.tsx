@@ -4,7 +4,7 @@ import type { CommentCounts } from '../hooks/useComments'
 import { plural } from '../lib/deps'
 import { LATER, PRIORITY_RANK, criticalChain, planStatus } from '../lib/plan'
 import type { Analysis, Plan, PlanItem, SizeSource } from '../types'
-import { Tip } from './Tip'
+import { InfoTip, Tip } from './Tip'
 
 // The delivery timeline (after Bhasker Rao's TimelineView, results-timeline-comments), drawn from the
 // quarter plan: one chevron bar per initiative across the quarters' sprints, at its T-shirt size
@@ -193,7 +193,7 @@ export function TimelineView({ analysis, plan, groupBy, visibleIds, selectedId, 
                         </button>
                       </Tip>
                       <span className="dt-title">{it.title}</span>
-                      <span className={`dt-status s-${st.cls}`}>{st.label}</span>
+                      {st.cls !== 'ok' && <span className={`dt-status s-${st.cls}`}>{st.label}</span>}
                     </div>
                     <div className="dt-lane" onClick={() => onSelect(it.id)}>
                       {hasTarget && (
@@ -260,16 +260,13 @@ export function TimelineView({ analysis, plan, groupBy, visibleIds, selectedId, 
           <Tip title="Longest chain of waits" content="From the initiative that finishes last among those that wait for something, back through the provider each one waits for longest. A slip anywhere on it moves that last finish."><span><i className="dt-line crit" />longest chain</span></Tip>
         </div>
         <label className="toggle"><input type="checkbox" checked={allLinks} onChange={(e) => setAllLinks(e.target.checked)} /> Show every wait as a line</label>
+        <InfoTip title="How this is scheduled" wide content={<>
+          <p>{plan.sprintsPerPi} sprints a quarter · {plan.tshirt.map((t) => `${t.size} = ${t.points}`).join(' · ')} pts.</p>
+          <p>Each initiative starts no earlier than its target quarter and the sprint after everything it waits for has finished.</p>
+          <p>Its T-shirt size in story points fills its team’s capacity sprint by sprint (the team capacity file), so the same size takes longer for a slower team; higher priority goes first when a team is full.</p>
+          <p>Without a size it is scheduled as {plan.defaultSize} and hatched until someone sizes it (in the initiative’s details, then rerun).</p>
+        </>} />
       </div>
-
-      <details className="dt-basis">
-        <summary>How this is scheduled · {plan.sprintsPerPi} sprints a quarter · {plan.tshirt.map((t) => `${t.size} = ${t.points}`).join(' · ')} pts</summary>
-        <ul>
-          <li>Each initiative starts no earlier than its target quarter and the sprint after everything it waits for has finished.</li>
-          <li>Its T-shirt size in story points fills its team’s capacity sprint by sprint (the team capacity file), so the same size takes longer for a slower team; higher priority goes first when a team is full.</li>
-          <li>Without a size it is scheduled as {plan.defaultSize} and hatched until someone sizes it (in the initiative’s details, then rerun).</li>
-        </ul>
-      </details>
     </div>
   )
 }

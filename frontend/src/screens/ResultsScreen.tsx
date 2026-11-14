@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { AtAGlance, type GlanceTarget } from '../components/AtAGlance'
 import { DependencyGraph } from '../components/DependencyGraph'
-import { DependencyList } from '../components/DependencyList'
 import { EmptyState } from '../components/EmptyState'
 import { InitiativeDrawer, type DrawerTab } from '../components/InitiativeDrawer'
 import { InitiativeFilter } from '../components/InitiativeFilter'
@@ -9,15 +7,13 @@ import { NodeDrawer } from '../components/NodeDrawer'
 import { ReasoningDrawer } from '../components/ReasoningDrawer'
 import { RerunBar } from '../components/RerunBar'
 import { RiskGroups } from '../components/RiskGroups'
-import { Section } from '../components/Section'
 import { StatusChips, type Detail } from '../components/StatusChips'
 import { GROUP_LABEL, TimelineView, type GroupBy } from '../components/TimelineView'
 import { Tip } from '../components/Tip'
 import type { useComments } from '../hooks/useComments'
-import { LEVEL, LEVEL_ORDER, METHOD, depLabel, plural, touches } from '../lib/deps'
-import { FOUND_BY, IMPACT, criticalChain } from '../lib/plan'
+import { LEVEL, LEVEL_ORDER, depLabel, touches } from '../lib/deps'
+import { IMPACT, criticalChain } from '../lib/plan'
 import type { PlannerApi } from '../lib/planner'
-import { useSections } from '../lib/sections'
 import type { Analysis, CommentType, DependencyRow, DepLevel } from '../types'
 
 export type ResultsComments = ReturnType<typeof useComments> & {
@@ -27,7 +23,6 @@ export type ResultsComments = ReturnType<typeof useComments> & {
 
 interface Props {
   analysis: Analysis | null
-  initiativeCount: number
   onViewAnalysis: () => void
   onOpenDashboard: () => void
   onBack: () => void
@@ -55,20 +50,11 @@ const VIEWS: { id: View; label: string; icon: string; hint: string }[] = [
   { id: 'risks', label: 'Risks', icon: 'ti-flag', hint: 'Dependency Risk Index rules over the run, grouped by rule. The rule decides each flag and its severity; open one for the evidence and to flag it for PI planning.' },
 ]
 
-const CONFLICT = {
-  later_quarter: { label: 'Later quarter', icon: 'ti-arrows-cross', hint: 'The provider is targeted at a later quarter than the initiative that waits for it, so the plan as written cannot hold: pull the provider forward or move the consumer after it.' },
-  too_tight: { label: 'Tight quarter', icon: 'ti-hourglass-high', hint: 'At its team’s velocity the provider is still running when the consumer’s quarter starts: both are targeted at that quarter, or the provider spills into it from an earlier one. The consumer can only start after it, and then cannot finish inside its quarter. Start the provider first thing, split the work, or move the consumer.' },
-  sprint: { label: 'Sprint overlap', icon: 'ti-calendar-x', hint: 'The consumer is planned to start before its provider is planned to finish.' },
-} as const
-
-export function ResultsScreen({ analysis, initiativeCount, onViewAnalysis, onOpenDashboard, onBack, flags, onToggleFlag, review, planner, comments, commentsCsv }: Props) {
-  const { jump } = useSections()
+export function ResultsScreen({ analysis, onViewAnalysis, onOpenDashboard, onBack, flags, onToggleFlag, review, planner, comments, commentsCsv }: Props) {
   const [drawer, setDrawer] = useState<Drawer>(null)
   const [initiative, setInitiative] = useState('')
   const [level, setLevel] = useState<DepLevel | ''>('')
   const [scope, setScope] = useState<GraphScope>('ordering')
-  const [methods, setMethods] = useState<Set<string>>(new Set())
-  const [query, setQuery] = useState('')
   const [view, setView] = useState<View>('timeline')
   const [groupBy, setGroupBy] = useState<GroupBy>('quarter')
   const [openOnly, setOpenOnly] = useState(false)
@@ -133,13 +119,6 @@ export function ResultsScreen({ analysis, initiativeCount, onViewAnalysis, onOpe
 
   const all = analysis.dependencies
   const mine = (d: DependencyRow) => !initiative || touches(d, initiative)
-  const declared = all.filter((d) => (d.declared ?? !d.inferred) && mine(d))
-  const q = query.trim().toLowerCase()
-  const hiddenAll = all.filter((d) => !(d.declared ?? !d.inferred) && mine(d))
-  const hidden = hiddenAll.filter((d) => (!methods.size || d.methods.some((m) => methods.has(m)))
-    && (!q || `${d.fromLabel} ${d.toLabel} ${d.reason} ${d.toTeam}`.toLowerCase().includes(q)))
-  const methodCounts = Object.fromEntries([...new Set(hiddenAll.flatMap((d) => d.methods))].map((m) => [m, hiddenAll.filter((d) => d.methods.includes(m)).length]))
-  const conflicts = (plan?.conflicts ?? []).filter((c) => !initiative || c.consumer === initiative || c.provider === initiative)
 
   // The graph explorer: one set of filters for the graph and the tabs beside it.
   const inScope = all.filter((d) => mine(d) && (!level || d.level === level))
@@ -165,105 +144,27 @@ export function ResultsScreen({ analysis, initiativeCount, onViewAnalysis, onOpe
   const openInitiative = (id: string, t: DrawerTab = 'details') => setDrawer({ type: 'initiative', id, tab: t })
   const onNodeClick = (id: string) => (runIds.has(id) ? openInitiative(id) : setDrawer({ type: 'node', id }))
   const mineCount = activeIni ? comments.byInitiative.get(activeIni) : undefined
-  // "Before PI planning" opens the matching chip (or view) below and scrolls to it.
-  const show = (target: GlanceTarget) => {
-    if (target === 'risks') setView('risks')
-    else { setView('timeline'); if (target !== 'timeline') setDetail(target) }
-    jump('timeline')
-  }
-  const flipMethod = (m: string) => setMethods((s) => { const n = new Set(s); if (n.has(m)) n.delete(m); else n.add(m); return n })
 
   return (
     <div className={`results${expanded ? ' expanded' : ''}`}>
       <div className="results-bar">
         <InitiativeFilter initiatives={analysis.initiatives} value={initiative} onChange={setInitiative} />
-        <span className="results-bar-note">{initiativeCount} initiatives analysed{initiative && ' · filtered to one initiative and what touches it'}</span>
+        {initiative && <span className="results-bar-note">Filtered to one initiative and what touches it</span>}
         <span className="results-bar-end">
           <button className="link-btn" onClick={onViewAnalysis}><i className="ti ti-topology-star-3" aria-hidden="true" /> How was this analysed?</button>
           {plan && <button className="btn btn-primary btn-sm" onClick={onOpenDashboard}><i className="ti ti-layout-kanban" aria-hidden="true" /> Decide quarters</button>}
         </span>
       </div>
 
-      <Section id="glance" title="At a glance" icon="ti-layout-dashboard" tone="accent"
-        tip="The three use cases in numbers, then what to resolve before PI planning. Hover any number for how it is counted; click a tile or an item to jump to its section.">
-        <AtAGlance analysis={analysis} onOpenRisk={openRisk} onShow={show} />
-      </Section>
-
-      <Section id="declared" title="1 · Declared dependencies" icon="ti-clipboard-check" count={declared.length}
-        sub="What the teams wrote down: each initiative's dependency column and its target quarter, and whether those quarters hold."
-        tip="Use case 1: user-defined dependencies and sequence. The dependency column lists the systems an initiative consumes (upstream) and the systems that consume its output (downstream); the target quarter is the sequence the team planned. The conflicts below are target quarters that break once the dependencies (declared and hidden) and the teams’ capacity are counted.">
-        {plan && (
-          <div className="conflicts">
-            <div className="block-label">
-              Target quarters as written: {conflicts.length ? plural(conflicts.length, 'conflict') : 'no conflicts'}
-            </div>
-            {conflicts.map((c) => (
-              <div className={`conflict c-${c.kind}`} key={`${c.provider}-${c.consumer}`}>
-                <Tip title={CONFLICT[c.kind].label} content={CONFLICT[c.kind].hint}>
-                  <span className="pchip imp-orders"><i className={`ti ${CONFLICT[c.kind].icon}`} aria-hidden="true" /> {CONFLICT[c.kind].label}</span>
-                </Tip>
-                <span className="conflict-text">
-                  <b>{c.consumerLabel}</b> ({c.consumerQuarter}) waits for <b>{c.providerLabel}</b> ({c.providerQuarter || c.providerFinishLabel})
-                  {c.kind === 'too_tight' && <>: the provider finishes {c.providerFinishLabel}, so it would end {c.consumerFinishLabel}</>}
-                  {' · '}<span className="muted">{c.declared ? 'declared' : 'hidden'} dependency · recommended start {c.recommendedStart}</span>
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-        {(() => {
-          const owners = new Set(declared.map((d) => d.from)).size
-          return (
-            <details className="steps-more" key={initiative || 'all'} open={owners <= 8}>
-              <summary>
-                <Tip title="Declared links by initiative" content="Each initiative’s own dependency column, one group per initiative: the systems it consumes (upstream) and the ones that consume its output (downstream), with the team that owns each. Open a link for the evidence, to keep or dismiss it, or to add a note.">
-                  <span>Declared links by initiative: {plural(declared.length, 'link')} across {plural(owners, 'initiative')}</span>
-                </Tip>
-              </summary>
-              <DependencyList deps={declared} groupBy="initiative" labelOf={labelOf} planner={planner} flagFor={flagFor}
-                empty="No declared dependencies: the initiatives' dependency column is empty." />
-            </details>
-          )
-        })()}
-      </Section>
-
-      <Section id="hidden" title="2 · Hidden dependencies" icon="ti-eye-search" count={hiddenAll.length} tone="accent"
-        sub={plan ? `${plan.counts.hidden} found that nobody declared (${plan.counts.hiddenShare}% of all links). The ones that change the order come first.` : undefined}
-        tip="Use case 2: dependencies that were not found before. The agents read the descriptions (stated but not declared), the GitHub manifests (code and shared-library links between teams with initiatives in the plan) and the ownership lookup (two initiatives on one system). Grouped by what each one does to the plan. Keep the ones the teams confirm and dismiss the rest; the rerun uses your decisions.">
-        <div className="hidden-bar">
-          <label className="search-box">
-            <i className="ti ti-search" aria-hidden="true" />
-            <input type="text" placeholder="Search initiatives, systems, teams" aria-label="Search hidden dependencies" value={query} onChange={(e) => setQuery(e.target.value)} />
-          </label>
-          <span className="chip-bar">
-            {Object.entries(methodCounts).map(([m, n]) => (
-              <Tip key={m} title={FOUND_BY[m]?.label ?? m} content={FOUND_BY[m]?.hint ?? ''}>
-                <button className={`chip${methods.has(m) ? ' on' : ''}`} aria-pressed={methods.has(m)} onClick={() => flipMethod(m)}>
-                  <i className={`ti ${FOUND_BY[m]?.icon ?? 'ti-search'}`} aria-hidden="true" /> {METHOD[m] ?? m} <span className="chip-n">{n}</span>
-                </button>
-              </Tip>
-            ))}
-            {methods.size > 0 && <button className="link-btn" onClick={() => setMethods(new Set())}>All methods</button>}
-          </span>
-        </div>
-        <DependencyList deps={hidden} groupBy="impact" labelOf={labelOf} planner={planner} openGroups={['orders', 'soft']} flagFor={flagFor}
-          empty={hiddenAll.length ? 'No hidden dependency matches the filter.' : 'No hidden dependencies were found.'} />
-      </Section>
-
-      <Section id="timeline" title="3 · Delivery timeline" icon="ti-timeline" count={plan ? `${plan.counts.laterQuarter} move` : analysis.steps.length}
-        sub={plan ? `By quarter, at each initiative's T-shirt size against its team's capacity: ${plan.counts.laterQuarter} start in a later quarter than targeted, ${plan.counts.spill} spill over.` : undefined}
-        tip="Use case 3: the sequence for dependencies that were not defined. Every initiative starts no earlier than its target quarter, after everything it waits for (the sprint after the provider finishes), and when its team has room, higher priority first. Its T-shirt size in story points fills the team’s capacity sprint by sprint, so a slow team takes longer for the same size. Click a bar for why it lands there, to set its size or a note for the rerun, or to comment on it."
-        actions={plan && <button className="btn btn-ghost btn-sm" onClick={onOpenDashboard}><i className="ti ti-layout-kanban" aria-hidden="true" /> Decide quarters</button>}>
+      <section className="tl-section" aria-label="Delivery timeline">
         <StatusChips
           analysis={analysis}
           openComments={comments.openCount}
           open={detail}
           onOpen={setDetail}
           onShowOpenComments={() => { setView('timeline'); setOpenOnly(true) }}
-          onShowRisks={() => setView('risks')}
           onSelectInitiative={(id) => openInitiative(id)}
           onOpenDashboard={onOpenDashboard}
-          onViewAnalysis={onViewAnalysis}
           review={review}
           commentsCsv={commentsCsv}
         />
@@ -353,7 +254,7 @@ export function ResultsScreen({ analysis, initiativeCount, onViewAnalysis, onOpe
             )}
           </div>
         </div>
-      </Section>
+      </section>
 
       <RerunBar planner={planner} />
 
@@ -377,7 +278,7 @@ export function ResultsScreen({ analysis, initiativeCount, onViewAnalysis, onOpe
             onAdd: (type: CommentType, text: string) => comments.add(activeIni, type, text),
             onResolve: comments.resolve,
           }}
-          planner={planner} onClose={() => setDrawer(null)} onOpenRisk={openRisk} onSelectInitiative={(id) => openInitiative(id)} labelOf={labelOf} />
+          planner={planner} flagFor={flagFor} onClose={() => setDrawer(null)} onOpenRisk={openRisk} onSelectInitiative={(id) => openInitiative(id)} labelOf={labelOf} />
       )}
     </div>
   )
