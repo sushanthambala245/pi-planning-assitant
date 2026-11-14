@@ -5,9 +5,13 @@ import { useSections } from '../lib/sections'
 import type { Analysis } from '../types'
 import { Tip } from './Tip'
 
+/** Where a "Before PI planning" item leads in the delivery timeline section: a status chip's detail or a view. */
+export type GlanceTarget = 'timeline' | 'moved' | 'capacity' | 'size' | 'readiness' | 'gaps' | 'risks'
+
 interface Props {
   analysis: Analysis
   onOpenRisk: (id: string) => void
+  onShow: (target: GlanceTarget) => void
 }
 
 function Tile({ n, title, big, unit, lines, tip, target, tone }: {
@@ -36,7 +40,7 @@ interface Todo {
 }
 
 /** The run in three use cases and a short to-do list; every number explains itself on hover. */
-export function AtAGlance({ analysis, onOpenRisk }: Props) {
+export function AtAGlance({ analysis, onOpenRisk, onShow }: Props) {
   const { jump } = useSections()
   const plan = analysis.plan
   const deps = analysis.dependencies
@@ -57,19 +61,19 @@ export function AtAGlance({ analysis, onOpenRisk }: Props) {
     tip: `${c.conflictsLaterQuarter} initiative(s) are targeted at an earlier quarter than something they wait for, and ${c.conflictsTight} wait for a provider that, at its team’s velocity, is still running in their quarter and leaves too little of it for them. ${c.conflictsHidden} of them come from hidden dependencies nobody declared.`,
   })
   if (c?.teamsOver) todos.push({
-    key: 'capacity', icon: 'ti-gauge', tone: 'high', go: () => jump('capacity'),
+    key: 'capacity', icon: 'ti-gauge', tone: 'high', go: () => onShow('capacity'),
     text: <><b>{c.teamsOver}</b> {c.teamsOver === 1 ? 'team is' : 'teams are'} over capacity as targeted</>,
     tip: 'The T-shirt sizes targeted at a quarter add up to more story points than the team can deliver in it (team capacity file). The recommended plan moves the lowest-priority work later; the decision dashboard lets you choose.',
   })
   if (c?.laterQuarter || c?.spill) todos.push({
-    key: 'moved', icon: 'ti-calendar-time', tone: 'warn', go: () => jump('sequence'),
+    key: 'moved', icon: 'ti-calendar-time', tone: 'warn', go: () => onShow('moved'),
     text: <><b>{c.laterQuarter}</b> start in a later quarter · <b>{c.spill}</b> finish after their target quarter</>,
-    tip: 'From the recommended plan: an initiative starts later than its target quarter when something it waits for lands later or its team has no room; it spills when its points do not fit before its target quarter ends. Each row in the sequence says why.',
+    tip: 'From the recommended plan: an initiative starts later than its target quarter when something it waits for lands later or its team has no room; it spills when its points do not fit before its target quarter ends. Click its bar in the timeline for why.',
   })
   if (c?.noSize) todos.push({
-    key: 'size', icon: 'ti-ruler-measure', tone: 'warn', go: () => jump('sequence'),
+    key: 'size', icon: 'ti-ruler-measure', tone: 'warn', go: () => onShow('size'),
     text: <><b>{c.noSize}</b> not sized: scheduled as {plan?.defaultSize ?? 'M'} for now</>,
-    tip: 'These initiatives have no T-shirt size in the initiatives file. They are scheduled at the default size so they still take capacity; set a size in the sequence (or on the dashboard) and rerun.',
+    tip: 'These initiatives have no T-shirt size in the initiatives file. They are scheduled at the default size so they still take capacity; set a size in its details on the timeline and rerun.',
   })
   const toConfirm = (byImpact.orders ?? 0) + (byImpact.soft ?? 0)
   if (toConfirm) todos.push({
@@ -83,17 +87,17 @@ export function AtAGlance({ analysis, onOpenRisk }: Props) {
     tip: 'Risk flags from the Dependency Risk Index rules (plan conflicts, missing owners, contracts, deprecated systems, capacity). The rules decide each flag and its severity. Click to open the first high one.',
   })
   if (r && r.total > r.analysed) todos.push({
-    key: 'readiness', icon: 'ti-filter', tone: 'info', go: () => jump('readiness'),
+    key: 'readiness', icon: 'ti-filter', tone: 'info', go: () => onShow('readiness'),
     text: <><b>{r.analysed}</b> of {r.total} analysed · {Object.entries(r.byStatus).filter(([s]) => !r.readyStatuses.includes(s)).map(([s, n]) => `${n} ${s}`).join(' · ')} left out</>,
     tip: `Only initiatives with status ${r.readyStatuses.join(' / ')} are planned. In Discovery means the team is still working out whether it is an initiative; Proposed means it is not accepted yet. Neither can be ready for PI planning.`,
   })
   const gaps = analysis.notChecked.filter((n) => !n.partial).length
   if (gaps) todos.push({
-    key: 'gaps', icon: 'ti-eye-off', tone: 'info', go: () => jump('risks'),
+    key: 'gaps', icon: 'ti-eye-off', tone: 'info', go: () => onShow('gaps'),
     text: <>{plural(gaps, 'risk check')} not run: no flag there is not a clean bill</>,
     tip: analysis.notChecked.filter((n) => !n.partial).map((n) => `${n.name}: ${n.reason}.`).join(' '),
   })
-  if (!todos.length) todos.push({ key: 'ok', icon: 'ti-circle-check', tone: 'ok', go: () => jump('sequence'), text: 'Nothing to resolve before PI planning from the checks that ran.', tip: 'No conflicts, no team over capacity and no high risks.' })
+  if (!todos.length) todos.push({ key: 'ok', icon: 'ti-circle-check', tone: 'ok', go: () => onShow('timeline'), text: 'Nothing to resolve before PI planning from the checks that ran.', tip: 'No conflicts, no team over capacity and no high risks.' })
 
   return (
     <div className="glance">
@@ -111,7 +115,7 @@ export function AtAGlance({ analysis, onOpenRisk }: Props) {
               <Tip key={k} title={IMPACT[k].label} content={IMPACT[k].hint}><span className={`pchip imp-${k}`}>{byImpact[k]} {IMPACT[k].label.toLowerCase()}</span></Tip>
             ))}</span>,
           ]} />
-        <Tile n={3} title="Recommended sequence" target="sequence" big={plan?.items.length ?? analysis.steps.length} unit={plan ? `initiatives in ${plural(quarters.length, 'quarter')}` : 'steps'}
+        <Tile n={3} title="Delivery timeline" target="timeline" big={plan?.items.length ?? analysis.steps.length} unit={plan ? `initiatives in ${plural(quarters.length, 'quarter')}` : 'steps'}
           tip="Dependencies not yet sequenced, put in order: every initiative starts after what it waits for and when its team has room, at its T-shirt size against its team’s capacity per quarter, higher priority first. It never starts before its target quarter."
           lines={[
             perQuarter,

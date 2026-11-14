@@ -33,7 +33,8 @@ ANONYMOUS = Identity("anonymous", "Anonymous", "Viewer")
 # (role, action) pairs that are allowed. Anything not listed is refused.
 POLICY: set[tuple[str, str]] = {
     *((role, action) for role in ("RTE", "EM", "Architect") for action in ("approve", "challenge")),
-    *((role, action) for role in ("RTE", "EM", "Architect", "Viewer") for action in ("run", "ask", "flag", "view")),
+    *((role, action) for role in ("RTE", "EM", "Architect", "Viewer")
+      for action in ("run", "ask", "flag", "view", "comment")),
 }
 
 

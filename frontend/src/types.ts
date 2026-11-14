@@ -455,3 +455,20 @@ export interface Notice {
   kind: 'ok' | 'error'
   text: string
 }
+
+export type CommentType = 'concern' | 'question' | 'decision' | 'action'
+
+/** Live feedback on one initiative, captured during PI planning (GET /api/runs/{id}/comments). */
+export interface Comment {
+  id: string
+  initiativeId: string
+  type: CommentType
+  text: string
+  author: string
+  authorId: string
+  role: string
+  createdAt: string
+  resolved: boolean
+  resolvedBy?: string | null
+  resolvedAt?: string | null
+}

@@ -26,7 +26,7 @@ A JSON file is one of:
 
 - an array of initiatives: `[{ "id", "title", "description", "meta?" }]`
 - a bundle: `{ "initiatives?": [...], "knowledgeSources?": [{ "name", "meta" }], "analysis?": { ... } }`
-  (the Results screen's **Export** writes this shape, plus `runId`, `flaggedRisks` and `planner`, which are ignored on upload)
+  (the Results screen's **Export** writes this shape, plus `runId`, `flaggedRisks`, `planner` and `comments`, which are ignored on upload)
 - an analysis object (the shape below) on its own
 
 ### Analysis object
@@ -213,6 +213,7 @@ next run as `planner` on `POST /api/runs`:
 ```jsonc
 {
   "initiative_ids": ["INIT-001", "…"],
+  "previous_run_id": "run-…",                                    // a rerun: its comments on these initiatives carry over
   "planner": {
     "initiative_notes": { "INIT-021": "blocked on INIT-005" },   // read like a description: a stated dependency becomes planner-defined
     "sizes": { "INIT-030": "L" },                                // replaces the T-shirt size
@@ -226,6 +227,29 @@ next run as `planner` on `POST /api/runs`:
 "Rerun with updates" starts a new run of the same initiatives with this body; the current results
 stay on screen until it finishes, then a message says what changed. A replayed file cannot be
 rerun, but the dashboard still checks placements and exports them as CSV.
+
+The Results screen's delivery timeline is drawn from `plan` (`items[].start` / `finish` against
+`sprints`, `targetQuarter`, `plannedIndex` / `deadline`, `waitsFor`, `sizeSource`); nothing else is needed.
+
+### Comments (backend; local for a replayed file)
+
+Live feedback per initiative (ported from the `results-timeline-comments` branch), from
+`GET /api/runs/{id}/comments?rev=N` (`rev` is what the client last saw; the answer is
+`{ "rev": N, "unchanged": true, "comments": [] }` when nothing moved). The Results screen polls it every
+5 s while it is open:
+
+```jsonc
+{ "id": "c-1a2b3c4d5e", "initiativeId": "INIT-001", "type": "concern",   // concern | question | decision | action
+  "text": "…", "author": "Presenter", "authorId": "rte.presenter", "role": "RTE",   // set by the server from X-Demo-User
+  "createdAt": "2026-11-12T13:02:11+00:00", "resolved": false, "resolvedBy": null, "resolvedAt": null }
+```
+
+`POST /api/runs/{id}/comments` takes `{ "initiative_id", "type", "text" }` (1 to 1000 characters; at
+most 500 per run); `POST /api/runs/{id}/comments/{cid}/resolve` takes `{ "resolved": true|false }`
+(reviewers, or the author); `GET /api/runs/{id}/comments/export` downloads a CSV. They are stored in the
+run folder (`comments.json`) and copied to a rerun (`previous_run_id`) for the initiatives it keeps.
+A replayed file has no backend run, so its comments are kept in the browser (`localStorage`) and
+written into Export as `comments`. Comments are for people: the agents read only the planner notes.
 
 ### Run review (backend only)
 

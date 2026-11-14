@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { api, isLoaded, toInitiative, toSource, type ReviewBody, type RunStatus } from './api/client'
+import { api, commentsCsvUrl, isLoaded, toInitiative, toSource, type ReviewBody, type RunStatus } from './api/client'
 import { HelpDrawer } from './components/HelpDrawer'
 import { Notices } from './components/Notices'
 import { ReviewPanel } from './components/ReviewPanel'
 import { SideNav } from './components/SideNav'
 import { Tip } from './components/Tip'
 import { TopBar } from './components/TopBar'
+import { useComments } from './hooks/useComments'
 import { normalizeAnalysis } from './lib/analysis'
 import { plural } from './lib/deps'
 import { ingestFiles, notice } from './lib/ingest'
@@ -69,6 +70,8 @@ interface Rerun {
   /** Risks flagged on the previous run: flags live per run on the backend, so they are carried over. */
   flags: string[]
   reviewer: string
+  /** Comments the backend copied from the previous run to the rerun. */
+  commentsCarried: number
 }
 
 /** Flags the risks on a run one at a time (each call returns the run's full list). */
@@ -124,6 +127,18 @@ export default function App() {
   readyRef.current = readyStatuses
   const initiativesRef = useRef(initiatives)
   initiativesRef.current = initiatives
+
+  // Live feedback per initiative: polled from the backend run (carried over to a rerun), or kept in this
+  // browser for a replayed file.
+  const who = reviewers.find((r) => r.id === reviewerId)
+  const comments = useComments({
+    runId: fromBackend ? runId : null,
+    reviewerId: reviewerId || undefined,
+    localAuthor: { name: 'You', role: 'Local' },
+    localKey: analysis ? analysis.initiatives.map((i) => i.id).sort().join(',') || 'analysis' : 'none',
+    active: screen === 'results',
+  })
+  const postingAs = fromBackend && who ? `${who.name} (${who.role})` : fromBackend ? 'Anonymous (pick a reviewer under Review and approve)' : 'you, on this device'
 
   const notify = useCallback((...next: Notice[]) => setNotices((prev) => [...next, ...prev].slice(0, 30)), [])
   // Intake lists every message; the other screens only the ones raised after leaving it (a rerun, an error).
@@ -261,7 +276,8 @@ export default function App() {
             }
             const flagged = rerun.flags.length
               ? ` · ${carry.length} of ${plural(rerun.flags.length, 'flagged risk')} carried over` : ''
-            notify(notice('ok', `Rerun complete${rerun.describe ? ` with ${rerun.describe}` : ''}: ${rerunDiff(rerun.before, next)}${flagged}`))
+            const talked = rerun.commentsCarried ? ` · ${plural(rerun.commentsCarried, 'comment')} carried over` : ''
+            notify(notice('ok', `Rerun complete${rerun.describe ? ` with ${rerun.describe}` : ''}: ${rerunDiff(rerun.before, next)}${flagged}${talked}`))
             endRerun()
           }
           return
@@ -304,10 +320,10 @@ export default function App() {
     if (mode === 'rerun') setRerunning(true)
     else setStarting(true)
     try {
-      const id = await api.startRun(ids, input)
+      const { id, commentsCarried } = await api.startRun(ids, input, mode === 'rerun' && runId ? runId : undefined)
       if (mode === 'rerun') {
         rerunRef.current = { before: analysis, sent: input, describe: describeChanges(input, sent ?? EMPTY_PLANNER),
-                             flags, reviewer: reviewerId }
+                             flags, reviewer: reviewerId, commentsCarried }
         setLiveRunId(id)
         return
       }
@@ -488,7 +504,7 @@ export default function App() {
     updateSelection((s) => s.filter((id) => !ids.includes(id)))
   }
 
-  /** The analysed initiatives (not the whole intake list), the flagged risks, the planner input and the results. */
+  /** The analysed initiatives (not the whole intake list), the flagged risks, the planner input, the comments and the results. */
   const exportAnalysis = () => {
     const ids = new Set(analysis?.initiatives.map((i) => i.id) ?? [])
     downloadJson('pi-analysis.json', {
@@ -496,6 +512,7 @@ export default function App() {
       initiatives: ids.size ? initiatives.filter((i) => ids.has(i.id)) : initiatives,
       flaggedRisks: flags,
       planner: plannerState.input,
+      comments: comments.comments,
       analysis,
     })
   }
@@ -503,11 +520,12 @@ export default function App() {
   const actions =
     screen === 'results' ? (
       <>
-        <Tip title="Export the analysis" content="Downloads the analysed initiatives, flagged risks, your notes and the results as one JSON file. Upload it on the Intake screen to replay this analysis without the backend.">
+        <Tip title="Export the analysis" content="Downloads the analysed initiatives, flagged risks, your notes, the comments and the results as one JSON file. Upload it on the Intake screen to replay this analysis without the backend.">
           <button className="btn btn-ghost btn-sm" onClick={exportAnalysis}>
             <i className="ti ti-download" aria-hidden="true" /> Export
           </button>
         </Tip>
+
         <button
           className="btn btn-ghost btn-sm"
           onClick={() => { setRun({ status: 'idle', current: 0 }); setScreen('intake') }}
@@ -602,6 +620,8 @@ export default function App() {
               onToggleFlag={toggleFlag}
               review={reviewPanel}
               planner={planner}
+              comments={{ ...comments, postingAs }}
+              commentsCsv={fromBackend && runId && comments.comments.length > 0 ? commentsCsvUrl(runId) : undefined}
             />
           )}
           {screen === 'dashboard' && (

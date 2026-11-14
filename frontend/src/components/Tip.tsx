@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 
 interface Props {
@@ -12,6 +12,8 @@ interface Props {
   focusable?: boolean
   wide?: boolean
   as?: 'span' | 'div'
+  /** Placement of the wrapper itself (for example an absolutely positioned bar). */
+  style?: CSSProperties
 }
 
 const GAP = 8
@@ -21,7 +23,7 @@ const GAP = 8
  * delay) and on keyboard focus, closes on leave, blur or Escape, and is rendered in a portal with
  * fixed positioning so scrolling containers and overflow never clip it.
  */
-export function Tip({ content, title, children, className, focusable, wide, as = 'span' }: Props) {
+export function Tip({ content, title, children, className, focusable, wide, as = 'span', style }: Props) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState<{ top: number; left: number; above: boolean } | null>(null)
   const anchor = useRef<HTMLElement | null>(null)
@@ -70,6 +72,7 @@ export function Tip({ content, title, children, className, focusable, wide, as =
       <Tag
         ref={(el: HTMLElement | null) => { anchor.current = el }}
         className={`tip-anchor${className ? ` ${className}` : ''}`}
+        style={style}
         tabIndex={focusable ? 0 : undefined}
         aria-describedby={open ? id : undefined}
         onMouseEnter={show}

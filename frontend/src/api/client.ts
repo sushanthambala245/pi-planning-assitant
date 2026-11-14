@@ -1,5 +1,5 @@
 import { classify } from '../lib/ingest'
-import type { Initiative, KnowledgeSource, PlannerInput, Reviewer, ReviewState } from '../types'
+import type { Comment, CommentType, Initiative, KnowledgeSource, PlannerInput, Reviewer, ReviewState } from '../types'
 
 // Thin client over the FastAPI backend (backend/app/main.py). URLs are relative: in dev and
 // preview, Vite forwards /api to http://localhost:8000 (vite.config.ts).
@@ -98,16 +98,38 @@ export const api = {
   },
   /** Re-reads the data folder; returns the new source reports. */
   reloadSources: () => call<{ sources: SourceReport[] }>('/sources/reload', { method: 'POST' }).then((r) => r.sources),
-  /** `planner` carries the notes, sizes and dependency decisions added after an earlier run. */
-  startRun: (initiativeIds: string[], planner?: PlannerInput) =>
-    call<{ run_id: string }>('/runs', post({ initiative_ids: initiativeIds, planner: planner ? toPlannerBody(planner) : undefined })).then((r) => r.run_id),
+  /**
+   * `planner` carries the notes, sizes and dependency decisions added after an earlier run. A rerun
+   * names the run it replaces (`previousRunId`), so the comments on these initiatives carry over.
+   */
+  startRun: (initiativeIds: string[], planner?: PlannerInput, previousRunId?: string) =>
+    call<{ run_id: string; comments_carried?: number }>('/runs', post({
+      initiative_ids: initiativeIds, planner: planner ? toPlannerBody(planner) : undefined, previous_run_id: previousRunId,
+    })).then((r) => ({ id: r.run_id, commentsCarried: r.comments_carried ?? 0 })),
   runAnalysis: (runId: string) => call<RunAnalysis>(`${run(runId)}/analysis`),
   reviewers: () => call<{ reviewers: Reviewer[] }>('/reviewers').then((r) => r.reviewers),
   /** Approve (exports the proposals) or challenge (re-sequences with a constraint); the run then resumes. */
   review: (runId: string, reviewerId: string, body: ReviewBody) => call<unknown>(`${run(runId)}/review`, post(body, reviewerId)),
   flag: (runId: string, itemId: string, flagged: boolean, reviewerId?: string) =>
     call<{ flags: string[] }>(`${run(runId)}/flags`, post({ item_id: itemId, flagged }, reviewerId)).then((r) => r.flags),
+  /** Send the `rev` you last saw: the answer is `unchanged: true` (and no comments) when nothing moved. */
+  comments: (runId: string, rev?: number) =>
+    call<CommentsReply>(`${run(runId)}/comments${rev === undefined ? '' : `?rev=${rev}`}`),
+  /** Author and role come from the reviewer id (X-Demo-User), not from the body. */
+  addComment: (runId: string, body: { initiative_id: string; type: CommentType; text: string }, reviewerId?: string) =>
+    call<CommentsReply>(`${run(runId)}/comments`, post(body, reviewerId)),
+  resolveComment: (runId: string, commentId: string, resolved: boolean, reviewerId?: string) =>
+    call<CommentsReply>(`${run(runId)}/comments/${encodeURIComponent(commentId)}/resolve`, post({ resolved }, reviewerId)),
 }
+
+export interface CommentsReply {
+  rev: number
+  unchanged?: boolean
+  comments: Comment[]
+}
+
+/** All comments of a run as a spreadsheet-safe CSV. */
+export const commentsCsvUrl = (runId: string) => `/api${run(runId)}/comments/export`
 
 /** A file the run exported after approval (proposals CSV, sequence note, audit). */
 export const exportUrl = (runId: string, name: string) => `/api${run(runId)}/export/${encodeURIComponent(name)}`

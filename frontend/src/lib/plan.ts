@@ -331,3 +331,31 @@ export function download(name: string, text: string, type = 'text/csv') {
   a.click()
   URL.revokeObjectURL(url)
 }
+
+/** Where an initiative lands against its target quarter, as a short label with its explanation. */
+export function planStatus(i: PlanItem): { cls: 'bad' | 'warn' | 'info' | 'ok'; label: string; hint: string } {
+  if (i.inCycle) return { cls: 'bad', label: 'Cycle', hint: 'Part of a dependency cycle: no order satisfies every dependency. Break the cycle (split the scope or re-plan an interface).' }
+  if (i.targetQuarter && i.pi !== i.targetQuarter) return { cls: 'bad', label: `Moves to ${i.pi}`, hint: `Targeted at ${i.targetQuarter}, but it cannot start before ${i.startLabel}: see the reasons.` }
+  if (i.spills) return { cls: 'warn', label: `Spills into ${i.finishPi}`, hint: `Starts in its target quarter but its points do not fit before ${i.targetQuarter} ends: it finishes in ${i.finishLabel}.` }
+  if (i.movedBy) return { cls: 'info', label: 'Later in quarter', hint: `Still in ${i.pi}, but it starts ${i.movedBy} sprint${i.movedBy === 1 ? '' : 's'} into it (${i.startLabel}) because it waits for another initiative or its team is busy.` }
+  return { cls: 'ok', label: 'On track', hint: 'Starts in its target quarter and finishes inside it.' }
+}
+
+/**
+ * The longest chain of waits in the plan: from the initiative that finishes last among those that
+ * wait for something, back through the provider each one waited longest for. A slip anywhere on it
+ * moves that last finish. Empty when nothing waits for anything.
+ */
+export function criticalChain(plan: Plan): Set<string> {
+  const byId = new Map(plan.items.map((i) => [i.id, i]))
+  const waiting = plan.items.filter((i) => i.waitsFor.some((w) => byId.has(w)))
+  if (!waiting.length) return new Set()
+  let at: PlanItem | undefined = waiting.reduce((a, b) => (b.finish > a.finish ? b : a))
+  const out = new Set<string>()
+  while (at && !out.has(at.id)) {
+    out.add(at.id)
+    const providers: PlanItem[] = at.waitsFor.map((w) => byId.get(w)).filter((p): p is PlanItem => !!p)
+    at = providers.length ? providers.reduce((a, b) => (b.finish > a.finish ? b : a)) : undefined
+  }
+  return out
+}

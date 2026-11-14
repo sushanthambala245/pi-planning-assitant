@@ -67,12 +67,13 @@ the next run (`planner` on `POST /api/runs`) and change all three.
 | GET / POST | `/api/sources`, `/api/sources/reload` | Source reports: ready / partial / invalid / missing / off, with row errors |
 | GET / POST | `/api/initiatives`, `/api/initiatives/upload` | List S1 + session initiatives (each with `status`, `ready`, `tshirt_size`, `dependency_text`); add manually; upload a CSV (validated like S1) |
 | GET | `/api/reviewers` | Demo roster and who may approve |
-| POST | `/api/runs` | Start a run: `{"initiative_ids": [...], "planner": {"initiative_notes", "sizes", "quarters", "dependency_notes", "dependency_decisions"}}` (planner optional); 400 if an initiative is not ready |
+| POST | `/api/runs` | Start a run: `{"initiative_ids": [...], "planner": {"initiative_notes", "sizes", "quarters", "dependency_notes", "dependency_decisions"}, "previous_run_id": "..."}` (planner and previous run optional; a rerun copies the previous run's comments on these initiatives); 400 if an initiative is not ready |
 | GET | `/api/runs`, `/api/runs/{id}` | Run list; run view with the full state |
 | GET | `/api/runs/{id}/analysis` | The run in the UI's `Analysis` contract (`frontend/src/types.ts`); poll it while the run is in progress |
 | GET | `/api/runs/{id}/events` | Server-sent events (`?after=<seq>` or `Last-Event-ID` to resume) |
 | POST | `/api/runs/{id}/review` | `X-Demo-User` header; `{"action": "approve"}` or `{"action": "challenge", "constraint": {"first", "then", "note"}}` |
 | POST | `/api/runs/{id}/flags`, `/api/runs/{id}/ask` | Flag an item for PI planning; ask the explain agent |
+| GET / POST | `/api/runs/{id}/comments`, `/api/runs/{id}/comments/{cid}/resolve`, `/api/runs/{id}/comments/export` | Live per-initiative comments (`?rev=` returns `unchanged` when nothing moved); resolve one (reviewers or the author); download them as CSV. Author and role come from `X-Demo-User` |
 | GET | `/api/runs/{id}/export/{file}` | Download an export (allow-listed names only) |
 
 ## Test and evaluate
