@@ -4,9 +4,9 @@ import type { Analysis } from '../types'
 import { StatusChip, VelocityChip } from './Chips'
 import { Tip } from './Tip'
 
-// The status chips over the delivery timeline (after Bhasker Rao's Headline, results-timeline-comments).
-// A chip appears only for what the chart cannot show and only when its number is not zero: spills, unsized
-// work, risks and comment counts are already on the bars, the Risks tab and the row bubbles.
+// The detail that opens under "At a glance" (after Bhasker Rao's Headline, results-timeline-comments):
+// one item of the "Before PI planning" list is open at a time. The chips themselves live in AtAGlance, so
+// nothing is listed twice.
 
 const CONFLICT = {
   later_quarter: { label: 'Later quarter', icon: 'ti-arrows-cross', hint: 'The provider is targeted at a later quarter than the initiative that waits for it, so the plan as written cannot hold: pull the provider forward or move the consumer after it.' },
@@ -14,12 +14,12 @@ const CONFLICT = {
   sprint: { label: 'Sprint overlap', icon: 'ti-calendar-x', hint: 'The consumer is planned to start before its provider is planned to finish.' },
 } as const
 
-export type Detail = 'conflicts' | 'capacity' | 'comments' | 'gaps' | 'readiness' | 'review'
+export type Detail = 'conflicts' | 'moved' | 'capacity' | 'size' | 'confirm' | 'comments' | 'gaps' | 'readiness' | 'review'
 
 interface Props {
   analysis: Analysis
   openComments: number
-  /** The chip whose detail is open. */
+  /** The item whose detail is open. */
   open: Detail | null
   onOpen: (d: Detail | null) => void
   onShowOpenComments: () => void
@@ -31,66 +31,26 @@ interface Props {
   commentsCsv?: string
 }
 
-type Chip = { id: Detail; icon: string; text: string; tone: 'd' | 'w' | 'a' | 'n'; tip: string }
 
-export function StatusChips({ analysis, openComments, open, onOpen, onShowOpenComments, onSelectInitiative, onOpenDashboard, review, commentsCsv }: Props) {
-  const { notChecked, plan, readiness: r } = analysis
-  const toggle = (d: Detail) => onOpen(open === d ? null : d)
-  const c = plan?.counts
+export function StatusDetail({ analysis, openComments, open, onOpen, onShowOpenComments, onSelectInitiative, onOpenDashboard, review, commentsCsv }: Props) {
+  const { notChecked, plan, readiness: r, dependencies: deps } = analysis
   const items = plan?.items ?? []
   const conflicts = plan?.conflicts ?? []
+  const later = items.filter((i) => i.targetQuarter && i.pi !== i.targetQuarter)
+  const spills = items.filter((i) => i.spills)
+  const unsized = items.filter((i) => i.sizeSource === 'assumed' || i.sizeSource === 'none')
+  // Hidden links that shape the order: nobody declared them, so the teams should confirm them.
+  const toConfirm = deps.filter((d) => !(d.declared ?? !d.inferred) && (d.impact === 'orders' || d.impact === 'soft'))
   const over = (plan?.teams ?? []).flatMap((t) => Object.entries(t.plannedByPi)
     .map(([q, pts]) => ({ team: t, q, pts, cap: t.capacityByPi[q] ?? t.quarterCapacity }))
     .filter((x) => x.cap && x.pts > x.cap))
-  const skipped = notChecked.filter((n) => !n.partial).length
-
-  const chips: Chip[] = [
-    ...(conflicts.length ? [{
-      id: 'conflicts' as const, icon: 'ti-arrows-cross', tone: 'd' as const, text: `${plural(conflicts.length, 'conflict')} in target quarters`,
-      tip: 'A team targeted a quarter that cannot hold once what it waits for, and its own team’s velocity, are counted.',
-    }] : []),
-    ...(over.length ? [{
-      id: 'capacity' as const, icon: 'ti-gauge', tone: 'd' as const, text: `${plural(c?.teamsOver ?? new Set(over.map((o) => o.team.id)).size, 'team')} over capacity`,
-      tip: 'The T-shirt sizes targeted at a quarter add up to more story points than the team can deliver in it (team capacity file). The plan moves the lowest-priority work later.',
-    }] : []),
-    ...(openComments ? [{
-      id: 'comments' as const, icon: 'ti-message-circle', tone: 'a' as const, text: plural(openComments, 'open comment'),
-      tip: 'Live feedback on the initiatives, per run: concerns, questions, decisions and actions, with who raised them.',
-    }] : []),
-    ...(notChecked.length ? [{
-      id: 'gaps' as const, icon: 'ti-eye-off', tone: 'w' as const, text: `${skipped || notChecked.length} check${(skipped || notChecked.length) === 1 ? '' : 's'} not run`,
-      tip: 'Risk checks whose source is not in the knowledge base: no flag there does not mean no risk.',
-    }] : []),
-    ...(r && r.excluded.length ? [{
-      id: 'readiness' as const, icon: 'ti-filter-off', tone: 'n' as const, text: `${r.excluded.length} left out`,
-      tip: `Only ${r.readyStatuses.join(' / ')} is analysed: In Discovery and Proposed initiatives are left out of the dependencies, the plan and the capacity counts.`,
-    }] : []),
-  ]
 
   const pick = (id: string) => onSelectInitiative(id)
 
+  if (!open) return null
   return (
-    <section className="headline" aria-label="Status">
-      <div className="headline-row">
-        <div className="headline-main">
-          <div className="chips">
-            {chips.map((ch) => (
-              <Tip key={ch.id} content={ch.tip}>
-                <button className={`status-chip ${ch.tone}${open === ch.id ? ' on' : ''}`} aria-expanded={open === ch.id} onClick={() => toggle(ch.id)}>
-                  <i className={`ti ${ch.icon}`} aria-hidden="true" /> {ch.text}
-                </button>
-              </Tip>
-            ))}
-          </div>
-        </div>
-        {review && (
-          <button className={`btn ${open === 'review' ? 'btn-ghost' : 'btn-primary'} btn-sm`} aria-expanded={open === 'review'} onClick={() => toggle('review')}>
-            <i className="ti ti-user-check" aria-hidden="true" /> Review and approve
-          </button>
-        )}
-      </div>
-
-      {open && (
+    <section className="headline" aria-label="Detail">
+      {(
         <div className="headline-detail" role="region" aria-label="Detail">
           <button className="icon-btn detail-close" aria-label="Close detail" onClick={() => onOpen(null)}><i className="ti ti-x" aria-hidden="true" /></button>
 
@@ -111,6 +71,47 @@ export function StatusChips({ analysis, openComments, open, onOpen, onShowOpenCo
                 ))}
               </ul>
               <button className="btn btn-ghost btn-sm" onClick={onOpenDashboard}><i className="ti ti-layout-kanban" aria-hidden="true" /> Decide quarters</button>
+            </>
+          )}
+          {open === 'moved' && (
+            <>
+              {later.length > 0 && <>
+                <p><b>{plural(later.length, 'initiative')}</b> start in a later quarter than the team targeted:</p>
+                <ul className="detail-list">
+                  {later.map((i) => (
+                    <li key={i.id}><button className="link-btn inline" onClick={() => pick(i.id)}>{i.title}</button> · targeted {i.targetQuarter}, starts {i.startLabel}{i.waitsFor.length ? ' (waits for something that lands later or its team is full)' : ''}</li>
+                  ))}
+                </ul>
+              </>}
+              {spills.length > 0 && <>
+                <p><b>{plural(spills.length, 'initiative')}</b> finish after their target quarter at their team’s velocity:</p>
+                <ul className="detail-list">
+                  {spills.map((i) => <li key={i.id}><button className="link-btn inline" onClick={() => pick(i.id)}>{i.title}</button> · {i.targetQuarter}, ends {i.finishLabel}</li>)}
+                </ul>
+              </>}
+              <button className="btn btn-ghost btn-sm" onClick={onOpenDashboard}><i className="ti ti-layout-kanban" aria-hidden="true" /> Decide quarters</button>
+            </>
+          )}
+          {open === 'confirm' && (
+            <>
+              <p>Nobody declared these links, and they shape the order. Open an initiative to keep or dismiss each one after confirming with the two teams:</p>
+              <ul className="detail-list">
+                {toConfirm.map((d) => (
+                  <li key={d.key}>
+                    <button className="link-btn inline" onClick={() => pick(d.from)}>{d.fromLabel}</button> → {d.toLabel}
+                    {d.toTeam && d.toTeam !== d.toLabel ? ` (${d.toTeam})` : ''}
+                    <span className="muted"> · {d.impact === 'orders' ? 'changes the order' : 'should go first'}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          {open === 'size' && (
+            <>
+              <p>Not sized in the data, so scheduled as {plan?.defaultSize ?? 'M'}. Open one to set its size for the next run:</p>
+              <ul className="detail-list">
+                {unsized.map((i) => <li key={i.id}><button className="link-btn inline" onClick={() => pick(i.id)}>{i.title}</button> · {i.teamName}</li>)}
+              </ul>
             </>
           )}
           {open === 'capacity' && (

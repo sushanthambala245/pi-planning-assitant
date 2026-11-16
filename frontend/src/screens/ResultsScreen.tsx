@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { AtAGlance, type GlanceTarget } from '../components/AtAGlance'
 import { DependencyGraph } from '../components/DependencyGraph'
 import { EmptyState } from '../components/EmptyState'
 import { InitiativeDrawer, type DrawerTab } from '../components/InitiativeDrawer'
@@ -7,7 +8,8 @@ import { NodeDrawer } from '../components/NodeDrawer'
 import { ReasoningDrawer } from '../components/ReasoningDrawer'
 import { RerunBar } from '../components/RerunBar'
 import { RiskGroups } from '../components/RiskGroups'
-import { StatusChips, type Detail } from '../components/StatusChips'
+import { Section } from '../components/Section'
+import { StatusDetail, type Detail } from '../components/StatusDetail'
 import { GROUP_LABEL, TimelineView, type GroupBy } from '../components/TimelineView'
 import { Tip } from '../components/Tip'
 import type { useComments } from '../hooks/useComments'
@@ -141,6 +143,12 @@ export function ResultsScreen({ analysis, onViewAnalysis, onOpenDashboard, onBac
   const focusDeps = focusId ? all.filter((d) => touches(d, focusId)) : []
   const highlight = activeRisk ? activeRisk.highlightNodes : focusId ? [focusId, ...focusDeps.flatMap((d) => [d.from, d.to])] : []
   const openRisk = (id: string) => setDrawer({ type: 'risk', id })
+  // An "At a glance" tile or "Before PI planning" item: open its detail (again to close it), or go to a view.
+  const show = (target: GlanceTarget) => {
+    if (target === 'risks') { setView('risks'); document.getElementById('results-timeline')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
+    else if (target === 'timeline') document.getElementById('results-timeline')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    else setDetail((d) => (d === target ? null : target))
+  }
   const openInitiative = (id: string, t: DrawerTab = 'details') => setDrawer({ type: 'initiative', id, tab: t })
   const onNodeClick = (id: string) => (runIds.has(id) ? openInitiative(id) : setDrawer({ type: 'node', id }))
   const mineCount = activeIni ? comments.byInitiative.get(activeIni) : undefined
@@ -152,12 +160,19 @@ export function ResultsScreen({ analysis, onViewAnalysis, onOpenDashboard, onBac
         {initiative && <span className="results-bar-note">Filtered to one initiative and what touches it</span>}
         <span className="results-bar-end">
           <button className="link-btn" onClick={onViewAnalysis}><i className="ti ti-topology-star-3" aria-hidden="true" /> How was this analysed?</button>
-          {plan && <button className="btn btn-primary btn-sm" onClick={onOpenDashboard}><i className="ti ti-layout-kanban" aria-hidden="true" /> Decide quarters</button>}
+          {plan && <button className="btn btn-ghost btn-sm" onClick={onOpenDashboard}><i className="ti ti-layout-kanban" aria-hidden="true" /> Decide quarters</button>}
+          {review && (
+            <button className={`btn ${detail === 'review' ? 'btn-ghost' : 'btn-primary'} btn-sm`} aria-expanded={detail === 'review'} onClick={() => setDetail((d) => (d === 'review' ? null : 'review'))}>
+              <i className="ti ti-user-check" aria-hidden="true" /> Review and approve
+            </button>
+          )}
         </span>
       </div>
 
-      <section className="tl-section" aria-label="Delivery timeline">
-        <StatusChips
+      <Section id="glance" title="At a glance" icon="ti-layout-dashboard" tone="accent"
+        tip="The three use cases in numbers, then what to resolve before PI planning. Hover any number for how it is counted; click an item to open its detail, or Details on a tile.">
+        <AtAGlance analysis={analysis} openComments={comments.openCount} active={detail} onOpenRisk={openRisk} onShow={show} />
+        <StatusDetail
           analysis={analysis}
           openComments={comments.openCount}
           open={detail}
@@ -168,6 +183,9 @@ export function ResultsScreen({ analysis, onViewAnalysis, onOpenDashboard, onBac
           review={review}
           commentsCsv={commentsCsv}
         />
+      </Section>
+
+      <section id="results-timeline" className="tl-section" aria-label="Delivery timeline">
 
         <div className={`dt-area${expanded ? ' expanded' : ''}`}>
           <div className="view-bar">

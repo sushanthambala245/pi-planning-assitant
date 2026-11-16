@@ -774,6 +774,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1
 .uc-go { align-self: flex-start; margin-top: auto; padding-left: 0; }
 .todo-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .todo-label { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--hint); margin-right: 4px; }
+.todo.on { box-shadow: 0 0 0 1.5px var(--accent); }
 .todo { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px; border: 0.5px solid var(--border-strong); background: var(--surface); font: inherit; font-size: 12px; cursor: pointer; color: var(--text); text-align: left; }
 .todo:hover { border-color: var(--accent); }
 .todo i { font-size: 15px; }
