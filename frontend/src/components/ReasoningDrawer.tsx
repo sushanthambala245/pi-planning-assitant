@@ -1,9 +1,13 @@
 import { useState } from 'react'
 import { domainColor } from '../data/domains'
 import type { Risk } from '../types'
+import { Tip } from './Tip'
 
 interface Props {
   risk: Risk
+  /** Flagged for PI planning: kept per risk by the app (and on the backend for a live run). */
+  flagged: boolean
+  onToggleFlag: () => void
   onClose: () => void
   onPrev: () => void
   onNext: () => void
@@ -11,9 +15,8 @@ interface Props {
 
 const badgeClass = { High: 'high', Medium: 'medium', Low: 'low' } as const
 
-export function ReasoningDrawer({ risk, onClose, onPrev, onNext }: Props) {
+export function ReasoningDrawer({ risk, flagged, onToggleFlag, onClose, onPrev, onNext }: Props) {
   const [copied, setCopied] = useState(false)
-  const [flagged, setFlagged] = useState(false)
 
   const copy = async () => {
     await navigator.clipboard.writeText(`${risk.title}\n\n${risk.reasoning.join('\n\n')}`)
@@ -36,6 +39,8 @@ export function ReasoningDrawer({ risk, onClose, onPrev, onNext }: Props) {
         <span className={`drawer-risk-badge ${badgeClass[risk.severity]}`}>
           <i className="ti ti-alert-triangle" aria-hidden="true" /> {risk.severity} risk · {risk.title.split(' — ')[0]}
         </span>
+        <div className="drawer-risk-title">{risk.title}</div>
+        {risk.rule && <div className="drawer-risk-rule">Raised by rule {risk.ruleCode}: {risk.rule}</div>}
 
         {risk.reasoning.length > 0 && (
           <div className="drawer-section">
@@ -73,7 +78,7 @@ export function ReasoningDrawer({ risk, onClose, onPrev, onNext }: Props) {
           <div className="drawer-section">
             <div className="drawer-section-label">Suggested follow-ups</div>
             {risk.suggestedPrompts.map((p) => (
-              <button className="prompt-chip" key={p} disabled title="Follow-up questions arrive with the backend">
+              <button className="prompt-chip" key={p} disabled title="Follow-up questions are not available in this version">
                 <i className="ti ti-send" aria-hidden="true" /> {p}
               </button>
             ))}
@@ -82,9 +87,14 @@ export function ReasoningDrawer({ risk, onClose, onPrev, onNext }: Props) {
       </div>
 
       <div className="drawer-footer">
-        <button className="btn btn-ghost" onClick={() => setFlagged((f) => !f)}>
-          <i className="ti ti-flag" aria-hidden="true" /> {flagged ? 'Flagged' : 'Flag for PI planning'}
-        </button>
+        <Tip title={flagged ? 'Flagged for PI planning' : 'Flag for PI planning'}
+          content={flagged
+            ? 'This risk is marked to raise in PI planning. Click to remove the flag.'
+            : 'Marks this risk to raise in PI planning. The flag is saved with the run, carried over to a rerun while the risk is still raised, and included in Export.'}>
+          <button className={`btn btn-ghost${flagged ? ' flag-on' : ''}`} aria-pressed={flagged} onClick={onToggleFlag}>
+            <i className={`ti ${flagged ? 'ti-flag-check' : 'ti-flag'}`} aria-hidden="true" /> {flagged ? 'Flagged for PI planning' : 'Flag for PI planning'}
+          </button>
+        </Tip>
         <button className="btn btn-primary" onClick={copy}>
           <i className="ti ti-copy" aria-hidden="true" /> {copied ? 'Copied' : 'Copy reasoning'}
         </button>

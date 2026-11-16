@@ -1,0 +1,11 @@
+[project]
+name = "pi-planning-assistant-backend"
+version = "0.1.0"
+description = "PI Planning Assistant (Co-Pilot for PI): local-first agentic backend"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["ignore::DeprecationWarning"]

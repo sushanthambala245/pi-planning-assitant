@@ -1,0 +1,39 @@
+team_id,team_name,art,team_status
+CBL-Account-Services,Account Services,Core Banking & Ledger,Active
+CBL-Core-Modernization,Core Modernization,Core Banking & Ledger,Active
+CBL-Data-Services,Data Services,Core Banking & Ledger,Active
+CBL-Ledger-Platform,Ledger Platform,Core Banking & Ledger,Active
+CBL-Posting-Engine,Posting Engine,Core Banking & Ledger,Active
+CBL-Reconciliation,Reconciliation,Core Banking & Ledger,Active
+CBL-Settlement,Settlement,Core Banking & Ledger,Active
+CRD-Card-Authorization,Card Authorization,Cards & Lending,Active
+CRD-Card-Platform,Card Platform,Cards & Lending,Active
+CRD-Collections,Collections,Cards & Lending,Active
+CRD-Credit-Decisioning,Credit Decisioning,Cards & Lending,Active
+CRD-Lending-Origination,Lending Origination,Cards & Lending,Active
+CRD-Loan-Servicing,Loan Servicing,Cards & Lending,Active
+DIG-Customer-Experience,Customer Experience,Digital Channels,Active
+DIG-Digital-Identity,Digital Identity,Digital Channels,Active
+DIG-Mobile-Banking,Mobile Banking,Digital Channels,Active
+DIG-Notifications,Notifications,Digital Channels,Active
+DIG-Onboarding,Onboarding,Digital Channels,Active
+DIG-Online-Banking,Online Banking,Digital Channels,Active
+OBI-API-Security,API Security,Open Banking & Partner Integrations,Active
+OBI-Consent,Consent,Open Banking & Partner Integrations,Active
+OBI-Developer-Portal,Developer Portal,Open Banking & Partner Integrations,Active
+OBI-Embedded-Banking,Embedded Banking,Open Banking & Partner Integrations,Active
+OBI-Fintech-Integration,Fintech Integration,Open Banking & Partner Integrations,Active
+OBI-Partner-API,Partner API,Open Banking & Partner Integrations,Active
+PAY-ACH,ACH,Payments & Money Movement,Active
+PAY-Clearing,Clearing,Payments & Money Movement,Active
+PAY-Disputes,Disputes,Payments & Money Movement,Active
+PAY-Orchestration,Orchestration,Payments & Money Movement,Active
+PAY-RTP,RTP,Payments & Money Movement,Active
+PAY-Wires,Wires,Payments & Money Movement,Active
+RSK-AML,AML,"Risk, Compliance & Fraud Platform",Active
+RSK-Compliance-Controls,Compliance Controls,"Risk, Compliance & Fraud Platform",Active
+RSK-Fraud-Detection,Fraud Detection,"Risk, Compliance & Fraud Platform",Active
+RSK-Identity-Risk,Identity Risk,"Risk, Compliance & Fraud Platform",Active
+RSK-Model-Risk,Model Risk,"Risk, Compliance & Fraud Platform",Active
+RSK-Regulatory-Reporting,Regulatory Reporting,"Risk, Compliance & Fraud Platform",Active
+RSK-Risk-Data,Risk Data,"Risk, Compliance & Fraud Platform",Active

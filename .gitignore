@@ -1,1 +1,17 @@
 ﻿.claude/
+
+# Python
+backend/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+backend/.env
+
+# Run artefacts and eval results (regenerate them; never edit by hand)
+backend/runs/
+backend/evals/results/*
+!backend/evals/results/.gitkeep
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
