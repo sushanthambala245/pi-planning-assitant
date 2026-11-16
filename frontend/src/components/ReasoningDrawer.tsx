@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { domainColor } from '../data/domains'
 import type { Risk } from '../types'
+import { Tip } from './Tip'
 
 interface Props {
   risk: Risk
@@ -86,10 +87,14 @@ export function ReasoningDrawer({ risk, flagged, onToggleFlag, onClose, onPrev, 
       </div>
 
       <div className="drawer-footer">
-        <button className={`btn btn-ghost${flagged ? ' flag-on' : ''}`} aria-pressed={flagged} onClick={onToggleFlag}
-          title={flagged ? 'Flagged to raise in PI planning: click to remove the flag' : 'Mark this risk to raise in PI planning (kept with the run and in Export)'}>
-          <i className={`ti ${flagged ? 'ti-flag-check' : 'ti-flag'}`} aria-hidden="true" /> {flagged ? 'Flagged for PI planning' : 'Flag for PI planning'}
-        </button>
+        <Tip title={flagged ? 'Flagged for PI planning' : 'Flag for PI planning'}
+          content={flagged
+            ? 'This risk is marked to raise in PI planning. Click to remove the flag.'
+            : 'Marks this risk to raise in PI planning. The flag is saved with the run, carried over to a rerun while the risk is still raised, and included in Export.'}>
+          <button className={`btn btn-ghost${flagged ? ' flag-on' : ''}`} aria-pressed={flagged} onClick={onToggleFlag}>
+            <i className={`ti ${flagged ? 'ti-flag-check' : 'ti-flag'}`} aria-hidden="true" /> {flagged ? 'Flagged for PI planning' : 'Flag for PI planning'}
+          </button>
+        </Tip>
         <button className="btn btn-primary" onClick={copy}>
           <i className="ti ti-copy" aria-hidden="true" /> {copied ? 'Copied' : 'Copy reasoning'}
         </button>

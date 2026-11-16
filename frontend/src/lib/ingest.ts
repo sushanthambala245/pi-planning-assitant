@@ -51,15 +51,29 @@ function ingestCsv(file: string, text: string, out: IngestResult, opts: IngestOp
   if (isInitiatives) {
     const all = records.filter((r) => r.initiative_id)
     const limit = opts.maxInitiativesPerFile ?? all.length
-    const list = all.slice(0, limit).map<Initiative>((r) => ({
-      id: r.initiative_id,
-      title: r.initiative_name || r.title || r.name || r.initiative_id,
-      description: r.description ?? '',
-      meta: [r.owning_team, r.priority, r.target_pi].filter(Boolean).join(' · ') || undefined,
-      team: r.owning_team || undefined,
-      pi: r.target_pi || undefined,
-      priority: r.priority || undefined,
-    }))
+    // Headers are lower-cased with spaces as "_", so "T-Shirt Sizing" is t-shirt_sizing and the target
+    // quarter may carry a note ("target_pi-explicitly Q1/Q2.."): match those by prefix, as the backend does.
+    const col = (...prefixes: string[]) => headers.find((h) => prefixes.some((p) => h === p || h.startsWith(p)))
+    const sizeCol = col('t-shirt', 'tshirt', 't_shirt', 'size')
+    const piCol = col('target_pi', 'target_quarter', 'quarter', 'pi')
+    const list = all.slice(0, limit).map<Initiative>((r) => {
+      const size = sizeCol ? (r[sizeCol] ?? '').trim().toUpperCase() : ''
+      const pi = piCol ? (r[piCol] ?? '').trim() : ''
+      return {
+        id: r.initiative_id,
+        title: r.initiative_name || r.title || r.name || r.initiative_id,
+        description: r.description ?? '',
+        meta: [r.owning_team, r.priority, pi].filter(Boolean).join(' · ') || undefined,
+        team: r.owning_team || undefined,
+        pi: pi || undefined,
+        priority: r.priority || undefined,
+        status: r.status || undefined,
+        size: size || undefined,
+        art: r.art || undefined,
+        outcome: r.business_outcome || undefined,
+        dependencyText: r.dependency || r.dependencies || undefined,
+      }
+    })
     out.initiatives.push(...list)
     const skipped = all.length - list.length
     out.notices.push(skipped

@@ -93,12 +93,43 @@ def test_haverstone_headers_map_onto_the_contract(tmp_path: Path, settings):
     snap = build_snapshot(replace(settings, data_dir=d))
     assert set(snap.table("S6")["team"]) == {"T-A", "T-B"}  # team_id, not team_name: other sources join on it
     assert snap.repo_row("alpha-svc")["internal_dependencies"] == ["beta-lib"]  # repo ids resolve onto names
-    assert snap.repos_for_service("Beta Store") == ["alpha-svc", "beta-lib"]
-    assert snap.services_for_repo("beta-lib") == ["Beta Store"]
+    assert [r["repo"] for r in snap.repos_of_team("T-A")] == ["alpha-svc"]
+    assert snap.team_name("T-B") == "Beta Team" and snap.resolver.team("Beta Team").canonical == "T-B"
+    # The ownership map is a lookup per system: owner, lifecycle and contract status; not its repo links.
+    assert snap.service_row("Beta Store")["owner_team"] == "T-B"
     assert snap.service_row("Beta Store")["status"] == "Deprecated"
+    assert "repo" not in snap.table("S7").columns
     kpi = snap.table("S9").iloc[0]
     assert kpi["value"] != kpi["value"] and kpi["target"] == 95  # blank baseline is NaN, never 0 or a rejected row
     assert not snap.resolution_issues
+
+
+def test_reissued_exports_are_found_and_their_headers_mapped(tmp_path: Path, settings):
+    """The current package: initiatives_updated_v1.csv with a quarter column whose header explains
+    itself and a T-shirt size, and one capacity row per team. A newer _v2 export wins over _v1."""
+    import os
+    import time
+
+    d = tmp_path / "reissued"
+    (d / "pkg").mkdir(parents=True)
+    old = d / "pkg" / "initiatives_updated_v1.csv"
+    old.write_text("initiative_id,initiative_name,owning_team,target_pi-explicitly Q1/Q2..,T-Shirt Sizing\n"
+                   "INIT-1,Old,T-A,Q1,S\n", encoding="utf-8")
+    new = d / "pkg" / "initiatives_updated_v2.csv"
+    new.write_text("initiative_id,initiative_name,owning_team,target_pi-explicitly Q1/Q2..,T-Shirt Sizing\n"
+                   "INIT-1,New,T-A,Q2,xl\n", encoding="utf-8")
+    t = time.time()
+    os.utime(old, (t - 60, t - 60))
+    os.utime(new, (t, t))
+    (d / "team_capacity_updated_v1.csv").write_text("team_id,available_story_points\nT-A,32\n", encoding="utf-8")
+    snap = build_snapshot(replace(settings, data_dir=d))
+    s1, s5 = snap.reports["S1"], snap.reports["S5"]
+    assert s1.filename == "pkg/initiatives_updated_v2.csv" and any("initiatives_updated_v1.csv" in e for e in s1.errors)
+    ini = snap.initiatives()[0]
+    assert (ini.title, ini.target_pi, ini.tshirt_size) == ("New", "Q2", "XL")
+    assert not s1.unknown_columns  # the self-explaining header maps onto target_pi
+    assert s5.status == "ready" and snap.table("S5").iloc[0]["capacity_points"] == 32
+    assert snap.pi_names() == ["Q2"]
 
 
 def test_catalogue_resolution_levels():

@@ -2,10 +2,12 @@ import { useMemo, useRef, useState } from 'react'
 import { AgentDetail } from '../components/AgentDetail'
 import { AgentPipeline, type AgentWithState } from '../components/AgentPipeline'
 import { EmptyState } from '../components/EmptyState'
-import { FindingGroups } from '../components/FindingGroups'
+import { InitiativeAnalysisPanel } from '../components/InitiativeAnalysisPanel'
 import { InitiativeFilter } from '../components/InitiativeFilter'
 import { InitiativeSummary } from '../components/InitiativeSummary'
-import { FINDING_KIND, countBy, depLabel, findingInitiatives } from '../lib/deps'
+import { Section } from '../components/Section'
+import { Tip } from '../components/Tip'
+import { depLabel, needsChange, plural } from '../lib/deps'
 import type { Analysis, Run } from '../types'
 
 interface Props {
@@ -23,15 +25,10 @@ interface Props {
   onHelp: () => void
 }
 
-type View = 'summary' | 'findings'
-
 export function PipelineScreen({ analysis, run, initiativeCount, onFiles, live, starting = false, onStart, onViewResults, onBack, onHelp }: Props) {
   const [selected, setSelected] = useState<string | null>(null)
-  const [view, setView] = useState<View>('summary')
   const [initiative, setInitiative] = useState('')
-  const [kinds, setKinds] = useState<Set<string>>(new Set())
-  const [hideNoChange, setHideNoChange] = useState(true)
-  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [panel, setPanel] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
 
   const depsByKey = useMemo(() => new Map((analysis?.dependencies ?? []).map((d) => [d.key, d])), [analysis])
@@ -61,13 +58,15 @@ export function PipelineScreen({ analysis, run, initiativeCount, onFiles, live, 
   const total = analysis.agents.length
   const agents: AgentWithState[] = analysis.agents.map((a, i) => ({
     ...a,
-    state: run.status === 'done' || i < run.current ? 'done' : i === run.current && run.status === 'running' ? 'active' : 'wait',
+    state: run.status === 'done' || i < run.current ? 'done'
+      : i === run.current && run.status === 'running' ? 'active' : i === run.current && run.failed ? 'failed' : 'wait',
   }))
+  const done = agents.filter((a) => a.state === 'done').length
+  // While it runs, follow the active agent; once done, show a detail only for the agent the user picks.
   const focus =
     agents.find((a) => a.id === selected) ??
-    agents.find((a) => a.state === 'active') ??
-    [...agents].reverse().find((a) => a.state === 'done') ??
-    agents[0]
+    agents.find((a) => a.state === 'active' || a.state === 'failed') ??
+    (run.status === 'done' ? undefined : [...agents].reverse().find((a) => a.state === 'done') ?? agents[0])
 
   // A replayed file reveals its findings in step with the agents; a live run already does.
   const revealed =
@@ -75,55 +74,42 @@ export function PipelineScreen({ analysis, run, initiativeCount, onFiles, live, 
   const totalMs = analysis.agents.reduce((s, a) => s + (a.durationMs ?? 0), 0)
   const running = run.status === 'running'
 
-  const noChange = (f: (typeof revealed)[number]) => (f.changeType ?? (f.depKey ? depsByKey.get(f.depKey)?.changeType : undefined)) === 'none'
-  const forInitiative = initiative ? revealed.filter((f) => findingInitiatives(f, analysis).includes(initiative)) : revealed
-  const kindCounts = countBy(forInitiative, (f) => f.kind || 'other')
-  const hiddenNoChange = hideNoChange ? forInitiative.filter(noChange).length : 0
-  const shown = forInitiative.filter((f) => (!kinds.size || kinds.has(f.kind)) && !(hideNoChange && noChange(f)))
   const initiatives = initiative ? analysis.initiatives.filter((i) => i.id === initiative) : analysis.initiatives
-
-  const flipKind = (k: string) => setKinds((s) => {
-    const n = new Set(s)
-    if (n.has(k)) n.delete(k)
-    else n.add(k)
-    return n
-  })
-  const toggle = (text: string) => setExpanded((s) => {
-    const n = new Set(s)
-    if (n.has(text)) n.delete(text)
-    else n.add(text)
-    return n
-  })
   const labelOf = (key: string) => {
     const d = depsByKey.get(key)
     return d ? depLabel(d) : key
   }
-  const openInitiative = (id: string) => { setInitiative(id); setView('findings') }
+
+  // One line for the closed "By initiative" section: what the run found, counted once.
+  const deps = analysis.dependencies
+  const systemCount = new Set(analysis.findings.flatMap((f) => f.systems ?? []).map((s) => s.name)).size
+  const needChange = deps.filter((d) => needsChange(d.changeType)).length
+  const byInitiativeSummary = `${plural(systemCount, 'system')} · ${plural(deps.length, 'link')}, ${needChange} need a change · ${plural(analysis.risks.length, 'risk')}`
 
   return (
     <div className="s2-body">
       <div className="run-bar">
         <div>
           <div className="run-title">
-            {running ? 'Analysing initiatives…' : run.status === 'done' ? 'Analysis complete' : 'Ready to analyse'}
+            {running ? 'Analysing initiatives…' : run.status === 'done' ? 'Analysis complete'
+              : run.failed ? `Analysis failed at ${analysis.agents[run.current]?.name ?? 'an agent'}` : 'Ready to analyse'}
           </div>
           <div className="run-sub">
             {initiativeCount} initiative{initiativeCount === 1 ? '' : 's'} · {total} agents
             {run.status === 'done' && totalMs > 0 && ` · ${(totalMs / 1000).toFixed(1)}s total`}
-            {' · '}Click an agent to see its details
           </div>
         </div>
         <div className="cta-actions">
+          <InitiativeFilter initiatives={analysis.initiatives} value={initiative} onChange={setInitiative} />
           <button className="btn btn-ghost" onClick={onBack}><i className="ti ti-arrow-left" aria-hidden="true" /> Back to intake</button>
-          <button
-            className="btn btn-ghost"
-            onClick={onStart}
-            disabled={running || starting}
-            title={live ? 'Starts a new backend run for the same initiatives (it uses LLM calls again)' : 'Replays the loaded analysis from the first agent'}
-          >
-            <i className={`ti ${starting ? 'ti-loader-2 spin' : run.status === 'idle' ? 'ti-player-play' : 'ti-refresh'}`} aria-hidden="true" />
-            {starting ? 'Starting…' : run.status === 'idle' ? 'Start analysis' : live ? 'Run again (new run)' : 'Replay'}
-          </button>
+          <Tip title={live ? 'Run again' : 'Replay'} content={live
+            ? 'Starts a new backend run of the same initiatives with the data as it is now, and with your notes, sizes, quarter placements and keep / dismiss decisions. It uses LLM calls again when a key is set.'
+            : 'Replays the loaded analysis file from the first agent.'}>
+            <button className="btn btn-ghost" onClick={onStart} disabled={running || starting}>
+              <i className={`ti ${starting ? 'ti-loader-2 spin' : run.status === 'idle' ? 'ti-player-play' : 'ti-refresh'}`} aria-hidden="true" />
+              {starting ? 'Starting…' : run.status === 'idle' ? 'Start analysis' : live ? 'Run again' : 'Replay'}
+            </button>
+          </Tip>
           <button className="btn btn-primary" onClick={onViewResults} disabled={run.status !== 'done'}>
             <i className="ti ti-chart-dots" aria-hidden="true" /> View results
           </button>
@@ -134,89 +120,45 @@ export function PipelineScreen({ analysis, run, initiativeCount, onFiles, live, 
         <div className="list-empty">The analysis file doesn’t describe any agents.</div>
       ) : (
         <>
-          <AgentPipeline agents={agents} selectedId={focus?.id ?? null} onSelect={setSelected} />
+          <Section id="agents" title="Agent workflow" icon="ti-topology-star-3" count={`${done}/${total}`} tone="accent"
+            tip="The agents run in order: the analyser maps each initiative to the systems it touches; discovery reads the declared dependencies, the descriptions, GitHub and the ownership lookup; the verifier checks the evidence; sequencing schedules by quarter at each team’s velocity; the risk agent applies the Dependency Risk Index rules. Click an agent for what it read, found and decided.">
+            <AgentPipeline agents={agents} selectedId={focus?.id ?? null} onSelect={setSelected} />
+            {!focus && <div className="agent-hint">Select an agent to see what it read, found and how long it took.</div>}
+            {focus && (
+              <AgentDetail
+                key={focus.id}
+                agent={focus}
+                findings={analysis.findings.filter((f) => f.agentId === focus.id)}
+                analysis={analysis}
+                depsByKey={depsByKey}
+                labelOf={labelOf}
+              />
+            )}
+          </Section>
 
-          <div className="findings-grid">
-            <div>
-              <div className="view-bar">
-                <div className="seg" role="tablist" aria-label="How to show the findings">
-                  <button role="tab" aria-selected={view === 'summary'} className={`seg-btn${view === 'summary' ? ' active' : ''}`} onClick={() => setView('summary')}>
-                    <i className="ti ti-layout-grid" aria-hidden="true" /> Summary
-                  </button>
-                  <button role="tab" aria-selected={view === 'findings'} className={`seg-btn${view === 'findings' ? ' active' : ''}`} onClick={() => setView('findings')}>
-                    <i className="ti ti-layout-list" aria-hidden="true" /> Findings by initiative
-                  </button>
+          <Section id="by-initiative" title="By initiative" icon="ti-layout-grid" count={initiatives.length} defaultOpen={false}
+            summary={byInitiativeSummary}
+            tip="One card per initiative, grouped by release train (ART). Open a release train to see its initiatives, and click one for the systems it touches and who owns them, everything the agents found about it, and its risks.">
+            <InitiativeSummary analysis={analysis} initiatives={initiatives} onOpen={setPanel} />
+          </Section>
+
+          {analysis.sourcesUsed.length > 0 && run.current > 0 && (
+            <Section id="sources-used" title="Knowledge sources used" icon="ti-database" count={analysis.sourcesUsed.length} defaultOpen={false}
+              summary={analysis.sourcesUsed.map((s) => s.text.split(' — ')[0]).slice(0, 4).join(', ') + (analysis.sourcesUsed.length > 4 ? ', …' : '')}
+              tip="The files this run read, with their row counts.">
+              {analysis.sourcesUsed.map((s) => (
+                <div className="finding-card" key={s.text}>
+                  <div className="kb-used"><i className={`ti ${s.icon}`} aria-hidden="true" />{s.text}</div>
                 </div>
-                <InitiativeFilter initiatives={analysis.initiatives} value={initiative} onChange={setInitiative} />
-              </div>
-
-              {view === 'summary' ? (
-                <InitiativeSummary analysis={analysis} initiatives={initiatives} onOpen={openInitiative} />
-              ) : (
-                <>
-                  <div className="chip-bar">
-                    {Object.keys(FINDING_KIND).filter((k) => kindCounts[k]).map((k) => (
-                      <button key={k} className={`chip${kinds.has(k) ? ' on' : ''}`} aria-pressed={kinds.has(k)} onClick={() => flipKind(k)}>
-                        {FINDING_KIND[k]} <span className="chip-n">{kindCounts[k]}</span>
-                      </button>
-                    ))}
-                    {kinds.size > 0 && <button className="link-btn" onClick={() => setKinds(new Set())}>All types</button>}
-                    <label className="toggle" title="Dependencies that need nobody to build, agree or re-test anything">
-                      <input type="checkbox" checked={hideNoChange} onChange={(e) => setHideNoChange(e.target.checked)} />
-                      Hide no-change links{hiddenNoChange > 0 && ` (${hiddenNoChange})`}
-                    </label>
-                    <span className="chip-bar-end">
-                      <button className="link-btn" onClick={() => setExpanded(new Set(shown.map((f) => f.text)))}>
-                        <i className="ti ti-arrows-maximize" aria-hidden="true" /> Expand all
-                      </button>
-                      <button className="link-btn" onClick={() => setExpanded(new Set())}>
-                        <i className="ti ti-arrows-minimize" aria-hidden="true" /> Collapse all
-                      </button>
-                    </span>
-                  </div>
-                  <div className="findings-hint">
-                    <i className="ti ti-hand-click" aria-hidden="true" /> Hover a finding for a preview; double-click it (or press Enter) to keep the details open.
-                  </div>
-                  {revealed.length === 0 && <div className="list-empty">{running ? 'Waiting for the first findings…' : 'No findings yet.'}</div>}
-                  <FindingGroups
-                    analysis={analysis}
-                    findings={shown}
-                    initiatives={initiatives}
-                    showShared={!initiative}
-                    expanded={expanded}
-                    onToggle={toggle}
-                    depsByKey={depsByKey}
-                    labelOf={labelOf}
-                  />
-                </>
-              )}
-
-              {analysis.sourcesUsed.length > 0 && run.current > 0 && (
-                <details className="sources-used">
-                  <summary className="findings-label">Knowledge sources used ({analysis.sourcesUsed.length})</summary>
-                  {analysis.sourcesUsed.map((s) => (
-                    <div className="finding-card" key={s.text}>
-                      <div className="kb-used"><i className={`ti ${s.icon}`} aria-hidden="true" />{s.text}</div>
-                    </div>
-                  ))}
-                </details>
-              )}
-            </div>
-            <div>
-              <div className="findings-label">Agent details</div>
-              {focus && (
-                <AgentDetail
-                  key={focus.id}
-                  agent={focus}
-                  findings={analysis.findings.filter((f) => f.agentId === focus.id)}
-                  analysis={analysis}
-                  depsByKey={depsByKey}
-                  labelOf={labelOf}
-                />
-              )}
-            </div>
-          </div>
+              ))}
+            </Section>
+          )}
         </>
+      )}
+
+      {panel && (
+        <InitiativeAnalysisPanel analysis={analysis} initiativeId={panel} findings={revealed} depsByKey={depsByKey} labelOf={labelOf}
+          onClose={() => setPanel(null)} />
       )}
     </div>
   )

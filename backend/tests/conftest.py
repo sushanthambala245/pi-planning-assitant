@@ -97,8 +97,76 @@ FILES = {
 }
 
 
-def write_dataset(root: Path) -> Path:
-    for name, body in FILES.items():
+# The knowledge base the app uses by default (S1, S4, S5, S6 + the S7 owner lookup), in the format of
+# the current Haverstone package (initiatives_updated_v1.csv: target quarter and T-shirt size;
+# team_capacity_updated_v1.csv: one capacity per team and quarter). Shaped so each use case has
+# something to find:
+# - declared: every initiative lists "Upstream: ...; Downstream: ...".
+# - hidden: INIT-1 consumes Account Ledger, which INIT-3's team owns and changes (orders the work);
+#   INIT-2's text says it is blocked on INIT-1, whose team owns Ledger Posting API (orders); INIT-2's
+#   repo calls INIT-1's team's api repo while INIT-1 changes an API contract (a soft code link);
+#   INIT-4 changes the shared event schema, used by two other teams (a library ripple); INIT-1's text
+#   names the RTP team.
+# - sequence: INIT-1 (Q1, L = 13 points at 5 a sprint) waits for INIT-3, which is targeted at the later
+#   Q2 (a conflict in the plan as written), and INIT-2 (Q1, XL = 21 points at 4 a sprint) waits for
+#   INIT-1 in a quarter too tight for both. Both slip; PAY-RTP is over capacity in Q1 (21 of 20).
+# - sizes: INIT-4 has no T-shirt size, so it is scheduled as the default M and flagged.
+# - lookup: Ledger Posting API's contract is a draft, Unowned Feed's is missing, and Partner Payments
+#   is deprecated.
+# - left out: INIT-5 is In Discovery and INIT-6 is Proposed.
+KB_FILES = {
+    "initiatives_updated_v1.csv": """\
+        initiative_id,initiative_name,description,owning_team,art,target_pi-explicitly Q1/Q2..,priority,status,business_outcome,T-Shirt Sizing,dependency
+        INIT-1,Ledger posting API v2,Expose the new posting API contract; Payments RTP will require it.,CBL-Posting,Core,Q1,Critical,Ready for PI Planning,Faster posting,L,Upstream: Account Ledger; Downstream: RTP Network
+        INIT-2,RTP network expansion,Expand RTP Network capacity. Blocked on Ledger posting API v2 for the new endpoints.,PAY-RTP,Payments,Q1,High,Ready for PI Planning,More volume,XL,Upstream: Ledger Posting API; Downstream: Partner Payments
+        INIT-3,Account ledger cleanup,Normalise Account Ledger entries.,CBL-Ledger,Core,Q2,Medium,Ready for PI Planning,Fewer defects,L,Upstream: Account Ledger
+        INIT-4,Partner payments onboarding,Onboard partners through Partner Payments and migrate to the new event schema version.,OBI-Partner,Open Banking,Q1,High,Ready for PI Planning,More partners,,Upstream: Partner Payments; Downstream: Unowned Feed
+        INIT-5,Card rewards,Reward points for card spend.,CRD-Cards,Cards,Q2,Medium,In Discovery,Loyalty,M,Upstream: Account Ledger
+        INIT-6,Mobile app refresh,Refresh the mobile app theme.,DIG-Mobile,Digital,Q2,Medium,Proposed,Engagement,S,Downstream: RTP Network
+        """,
+    "github_repos_version_aligned.csv": """\
+        repo_id,repo_name,team_id,primary_language,repo_type,description,declared_internal_repo_ids,declared_shared_libraries,dependency_manifest_path,lifecycle_status,version,last_commit_at
+        REPO-1,cbl-posting-service,CBL-Posting,Java,service,Posting service,REPO-3,hfg-event-schema,pom.xml,Active,1.0.1,2026-10-01
+        REPO-2,cbl-posting-api,CBL-Posting,TypeScript,api,Posting API,REPO-1,,package.json,Active,1.0.2,2026-10-02
+        REPO-3,cbl-ledger-api,CBL-Ledger,Java,api,Ledger API,,hfg-event-schema,pom.xml,Active,1.0.3,2026-10-03
+        REPO-4,pay-rtp-service,PAY-RTP,Go,service,RTP service,REPO-2,,go.mod,Active,1.0.4,2026-10-04
+        REPO-5,obi-partner-service,OBI-Partner,Python,service,Partner service,REPO-6,hfg-event-schema,pyproject.toml,Active,1.0.5,2026-10-05
+        REPO-6,pay-legacy-adapter,PAY-RTP,Java,service,Legacy adapter,,,pom.xml,Deprecated,0.9.0,2025-01-01
+        """,
+    "team_capacity_updated_v1.csv": """\
+        team_id,available_story_points
+        CBL-Posting,25
+        PAY-RTP,20
+        CBL-Ledger,25
+        OBI-Partner,40
+        """,
+    "team_directory.csv": """\
+        team_id,team_name,art,team_status
+        CBL-Posting,Posting Engine,Core,Active
+        PAY-RTP,RTP,Payments,Active
+        CBL-Ledger,Ledger Platform,Core,Active
+        OBI-Partner,Partner API,Open Banking,Active
+        CRD-Cards,Card Platform,Cards,Active
+        DIG-Mobile,Mobile Banking,Digital,Active
+        """,
+    "service_ownership_map.csv": """\
+        service_id,service_name,service_type,owning_team_id,owning_art,ownership_status,lifecycle_status,interface_contract_status,related_repo_ids
+        SVC-1,Account Ledger,ledger_capability,CBL-Ledger,Core,Assigned,Active,Approved,REPO-3
+        SVC-2,Ledger Posting API,API,CBL-Posting,Core,Assigned,Active,Draft,REPO-2
+        SVC-3,RTP Network,service,PAY-RTP,Payments,Assigned,Active,Approved,REPO-4
+        SVC-4,Partner Payments,service,OBI-Partner,Open Banking,Assigned,Deprecated,Approved,REPO-5
+        SVC-5,Unowned Feed,dataset,,,Unassigned,Active,Missing,
+        """,
+    # Present in the folder but not part of the knowledge base: reported as switched off.
+    "historical_pi_outcomes.csv": """\
+        pi,team,committed_points,delivered_points,blockers
+        24.4,PAY-RTP,90,60,waiting on Ledger
+        """,
+}
+
+
+def write_dataset(root: Path, files: dict[str, str] | None = None) -> Path:
+    for name, body in (files or FILES).items():
         p = root / name
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(textwrap.dedent(body), encoding="utf-8")
@@ -111,8 +179,21 @@ def data_dir(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
+def kb_dir(tmp_path: Path) -> Path:
+    return write_dataset(tmp_path / "kb", KB_FILES)
+
+
+@pytest.fixture
+def kb_settings(tmp_path: Path, kb_dir: Path) -> Settings:
+    """The default knowledge base (ACTIVE_SOURCES unset): what the app runs on."""
+    return replace(Settings(), data_dir=kb_dir, runs_dir=tmp_path / "kb-runs", llm_provider="none",
+                   active_sources=("S1", "S4", "S5", "S6", "S7"))
+
+
+@pytest.fixture
 def settings(tmp_path: Path, data_dir: Path) -> Settings:
-    return replace(Settings(), data_dir=data_dir, runs_dir=tmp_path / "runs", llm_provider="none")
+    """The legacy fixture with every source switched on (the loader, index and tools tests)."""
+    return replace(Settings(), data_dir=data_dir, runs_dir=tmp_path / "runs", llm_provider="none", active_sources=None)
 
 
 class ScriptedLLM(BaseLLM):

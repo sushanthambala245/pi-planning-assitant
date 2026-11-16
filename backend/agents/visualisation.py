@@ -1,7 +1,7 @@
-"""Visualisation agent: graph JSON, stat row, KPI strip, executive summary.
+"""Visualisation agent: graph JSON, the summary numbers and the one-line summary.
 
-The sequence text and the key risk are computed; the LLM only writes the summary
-paragraph, from the computed facts.
+Everything here is counted from the run; no model writes text in this step (the Results screen
+shows the numbers as tiles, not a paragraph).
 
 People see dependency *links*: one per (dependent, target) pair, however many methods found
 it (app/analysis_view.py merges them the same way). The summary is given link counts so its
@@ -10,10 +10,7 @@ numbers match the screen; `dependencies` stays the raw count for the evals and t
 
 from __future__ import annotations
 
-import json
 from collections import Counter, defaultdict
-
-from pydantic import BaseModel
 
 from agents.runtime import RunContext, node
 from agents.state import AgentState, Dependency, Risk
@@ -54,12 +51,6 @@ def _key_risk(ranked: list[Risk]) -> str:
     return f"{top.title}: {top.description}{tail}"
 
 
-class SummaryOut(BaseModel):
-    headline: str
-    key_risk: str
-    summary: str
-
-
 @node("visualisation", "Visualisation agent")
 def visualise(state: AgentState, ctx: RunContext) -> dict:
     snap = ctx.snapshot
@@ -78,6 +69,8 @@ def visualise(state: AgentState, ctx: RunContext) -> dict:
         "dependencies": len(live),
         "links": len(pairs),
         "links_documented": sum(v is True for v in pair_jira),
+        "links_declared": sum(any(d.declared for d in m) for m in pairs.values()),
+        "links_hidden": sum(not any(d.declared for d in m) for m in pairs.values()),
         "links_not_in_jira": sum(v is False for v in pair_jira),
         "documented": sum(d.in_jira is True for d in live),
         "not_in_jira": sum(d.in_jira is False for d in live),
@@ -96,32 +89,12 @@ def visualise(state: AgentState, ctx: RunContext) -> dict:
     summary = {
         "sequence_text": sequence_text or "No initiatives to sequence.",
         "key_risk": _key_risk(ranked),
-        "summary": (f"{plural(stats['initiatives'], 'initiative')} across {plural(stats['teams'], 'team')}; "
-                    f"{plural(stats['links'], 'dependency link')}, {stats['links_not_in_jira']} not yet linked in "
-                    f"Jira; {plural(stats['risks'], 'risk flag')} ({by_sev['high']} high, {by_sev['medium']} "
-                    f"medium, {by_sev['low']} low)."),
+        "summary": (f"{plural(stats['initiatives'], 'initiative')} across {plural(stats['teams'], 'team')}: "
+                    f"{plural(stats['links_declared'], 'declared dependency', 'declared dependencies')}, "
+                    f"{stats['links_hidden']} hidden ones found; {plural(stats['risks'], 'risk flag')} "
+                    f"({by_sev['high']} high, {by_sev['medium']} medium, {by_sev['low']} low)."),
         "method": "template",
     }
-    if state.sequence:
-        found_by = Counter(k for m in pairs.values() for k in {d.kind for d in m})
-        facts = {
-            "counts": {"initiatives": stats["initiatives"], "teams": stats["teams"],
-                       "dependency_links": stats["links"], "links_already_in_jira": stats["links_documented"],
-                       "links_not_in_jira": stats["links_not_in_jira"], "jira_baseline_loaded": jira_baseline,
-                       "links_found_by": {"stated in text": found_by["explicit"], "code manifests": found_by["code"],
-                                          "ownership map": found_by["ownership"]},
-                       "candidates_rejected_by_verifier": stats["rejected"], "risks": stats["risks"],
-                       "risks_by_severity": by_sev, "sequence_steps": stats["steps"]},
-            "sequence": sequence_text,
-            "top_risks": [{"title": r.title, "severity": SEVERITY_WORD[r.severity], "finding": r.description}
-                          for r in ranked[:5]],
-            "not_checked": [f"{k} ({DRI_CODES.get(k, k)})" for k, v in state.rule_coverage.items()
-                            if v.startswith("skipped")]}
-        out = ctx.structured(task="exec_summary", prompt="exec_summary", stable_context="",
-                             user=json.dumps(facts, indent=1), schema=SummaryOut, node="visualisation")
-        if out is not None and out.summary.strip():
-            summary["summary"], summary["method"] = out.summary.strip(), "llm"
-
     kpis = []
     def num(v):
         return None if v != v else float(v)  # NaN -> None, numpy -> float

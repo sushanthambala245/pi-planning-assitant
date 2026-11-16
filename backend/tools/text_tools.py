@@ -10,58 +10,36 @@ from agents.runtime import RunContext
 from agents.state import Initiative
 from context.index import Chunk
 
-MAX_EVIDENCE_CHARS = 14000
-
-
 def initiative_chunks(ctx: RunContext, ini: Initiative) -> list[Chunk]:
     """The initiative's own text: S1 row chunks, or a run-local chunk for uploads/manual entries."""
     chunks = ctx.snapshot.index.doc_chunks(f"S1:{ini.id}")
     if chunks:
         return chunks
-    text = "\n\n".join(t for t in (ini.title, ini.description) if t)
+    text = "\n\n".join(t for t in (ini.title, ini.description, ini.dependency_text) if t)
     c = Chunk(f"INIT:{ini.id}#0", f"INIT:{ini.id}", ini.origin, ini.id, ini.title, text)
     ctx.add_chunk(c)
     return [c]
 
 
-def epic_chunks(ctx: RunContext, ini: Initiative) -> list[Chunk]:
-    out = []
-    for key in sorted(ctx.snapshot.epic_keys_for(ini.id)):
-        out.extend(ctx.snapshot.index.doc_chunks(f"S2:{key}"))
-    return out
-
-
-def statement_chunks(ctx: RunContext, ini: Initiative) -> list[Chunk]:
-    """S3 statements whose source_ref points at one of the initiative's epics."""
-    s3 = ctx.snapshot.table("S3")
-    keys = ctx.snapshot.epic_keys_for(ini.id) | {ini.id}
-    if s3.empty or "source_ref" not in s3.columns:
+def note_chunks(ctx: RunContext, ini: Initiative) -> list[Chunk]:
+    """A planner's note on the initiative, as a run-local document the initiative owns."""
+    if not ini.note.strip():
         return []
-    out = []
-    for sid in s3.loc[s3["source_ref"].isin(keys), "statement_id"]:
-        out.extend(ctx.snapshot.index.doc_chunks(f"S3:{sid}"))
-    return out
+    c = Chunk(f"INIT:{ini.id}:note#0", f"INIT:{ini.id}:note", "NOTE", ini.id, f"Planner note on {ini.id}",
+              ini.note.strip())
+    ctx.add_chunk(c)
+    return [c]
 
 
-def gather(ctx: RunContext, ini: Initiative, query_terms: list[str], sources: tuple[str, ...],
-           k: int | None = None, include_direct: bool = True) -> list[Chunk]:
-    """Direct evidence first (initiative, epics, statements), then retrieval hits, deduped
-    and capped so prompts stay bounded."""
-    picked: dict[str, Chunk] = {}
-    if include_direct:
-        for c in initiative_chunks(ctx, ini) + epic_chunks(ctx, ini) + statement_chunks(ctx, ini):
-            picked.setdefault(c.chunk_id, c)
-    query = " ".join([ini.title, ini.description[:400], *query_terms])
-    for hit in ctx.snapshot.index.search(query, k=k or ctx.settings.retrieval_k, sources=sources):
-        picked.setdefault(hit.chunk.chunk_id, hit.chunk)
-    out, total = [], 0
-    for c in picked.values():
-        if total + len(c.text) > MAX_EVIDENCE_CHARS and out:
-            break
-        out.append(c)
-        total += len(c.text)
+def own_chunks(ctx: RunContext, ini: Initiative) -> list[Chunk]:
+    """The initiative's own text and its planner note, registered as observed."""
+    out = initiative_chunks(ctx, ini) + note_chunks(ctx, ini)
     ctx.observe(c.chunk_id for c in out)
     return out
+
+
+def is_note(chunk: Chunk | None) -> bool:
+    return bool(chunk) and chunk.doc_id.endswith(":note")
 
 
 def _safe(text: str) -> str:

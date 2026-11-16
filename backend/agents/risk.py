@@ -45,7 +45,8 @@ def _people(ctx: RunContext, state: AgentState, r: Risk) -> list[dict]:
 
 @node("risk", "Risk agent")
 def risk(state: AgentState, ctx: RunContext) -> dict:
-    facts = Facts(ctx.snapshot, ctx.settings, state.initiatives, state.systems, state.deps, state.cycles, state.capacity)
+    facts = Facts(ctx.snapshot, ctx.settings, state.initiatives, state.systems, state.deps, state.cycles, state.capacity,
+                  state.conflicts, state.calendar)
     risks, coverage = run_rules(facts)
     for r in risks:
         r.rationale = _template(r)

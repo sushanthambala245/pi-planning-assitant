@@ -22,7 +22,8 @@ from context.sources import SOURCES, SourceSpec
 
 log = logging.getLogger(__name__)
 
-Status = Literal["ready", "partial", "invalid", "missing"]
+# off: the file may be there, but the source is not part of the knowledge base (ACTIVE_SOURCES).
+Status = Literal["ready", "partial", "invalid", "missing", "off"]
 _MAX_ERRORS = 20
 _LIST_SPLIT = re.compile(r"\s*[;|,]\s*")
 _TRUE = {"true", "yes", "y", "1", "t"}
@@ -128,6 +129,12 @@ def load_csv(path: Path, spec: SourceSpec, report: SourceReport) -> pd.DataFrame
     for alias, canonical in spec.aliases.items():  # first alias present wins, so no column is duplicated
         if alias in df.columns and canonical not in df.columns and canonical not in renames.values():
             renames[alias] = canonical
+    for prefix, canonical in spec.alias_prefixes.items():  # e.g. target_pi_explicitly_q1_q2 -> target_pi
+        if canonical in df.columns or canonical in renames.values():
+            continue
+        hit = next((c for c in df.columns if c not in renames and c.startswith(prefix) and c not in spec.columns), None)
+        if hit:
+            renames[hit] = canonical
     df = df.rename(columns=renames)
 
     missing = [c for c in spec.required if c not in df.columns]
@@ -226,18 +233,26 @@ def _fingerprint(data_dir: Path) -> str:
 
 def locate(data_dir: Path, spec: SourceSpec) -> tuple[Path | None, list[Path]]:
     """A source's file (or folder) anywhere under DATA_DIR: the canonical name before its
-    alternatives, the shallowest copy first. The other copies found are returned so the
+    alternatives, the shallowest copy first. An alternative may be a glob pattern
+    ("initiatives_updated*.csv"); among its matches the newest file wins, so a re-issued
+    export (``_v2``) replaces the one before it. The other copies found are returned so the
     report can name them instead of ignoring them silently."""
     if not data_dir.is_dir():
         return None, []
     found: list[Path] = []
     for name in (spec.filename, *spec.alt_filenames):
-        hits = [p for p in data_dir.rglob(name) if p.is_dir() == (spec.kind == "markdown_dir")]
-        found += sorted(hits, key=lambda p: (len(p.relative_to(data_dir).parts), p.as_posix()))
+        hits = [p for p in data_dir.rglob(name) if p.is_dir() == (spec.kind == "markdown_dir") and p not in found]
+        if any(ch in name for ch in "*?["):
+            hits.sort(key=lambda p: (-p.stat().st_mtime, len(p.relative_to(data_dir).parts), p.as_posix()))
+        else:
+            hits.sort(key=lambda p: (len(p.relative_to(data_dir).parts), p.as_posix()))
+        found += hits
     return (found[0], found[1:]) if found else (None, [])
 
 
-def load_raw(data_dir: Path) -> RawData:
+def load_raw(data_dir: Path, active: tuple[str, ...] | None = None) -> RawData:
+    """Every source in the catalogue; one outside `active` (None = all) is reported as off and
+    not read, so no agent can use it."""
     tables: dict[str, pd.DataFrame] = {}
     docs: list[Doc] = []
     reports: dict[str, SourceReport] = {}
@@ -246,6 +261,11 @@ def load_raw(data_dir: Path) -> RawData:
         rep = SourceReport(spec.id, spec.filename, spec.title, spec.stands_in_for, spec.used_by, spec.mock)
         reports[spec.id] = rep
         path, others = locate(data_dir, spec)
+        if active is not None and spec.id not in active:
+            rep.status = "off"
+            if path is not None:
+                rep.filename = path.relative_to(data_dir).as_posix()
+            continue
         if path is None:
             continue
         rep.filename = path.relative_to(data_dir).as_posix()
